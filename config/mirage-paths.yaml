@@ -1,0 +1,29 @@
+# mirage-paths.yaml
+#
+# Configuration for how kaczmarek.ai-dev locates and talks to your Mirage project.
+#
+# This file is intentionally simple and text-based so both humans and AI tools
+# can read and modify it easily.
+
+mirage:
+  # Path to your Mirage repository root, relative to this kaczmarek.ai-dev repo.
+  #
+  # In your current setup, kaczmarek.ai-dev lives *inside* the Mirage repo at:
+  #   /Users/kaczmarek/x/swietlik/swietlik.mirage/kaczmarek.ai-dev
+  #
+  # So the Mirage root is one level up.
+  root: ".."
+
+  # Optional: override build directory if different from the default "build".
+  build_dir: "build"
+
+  # Base URL for the Mirage Action Web API (ActionWebBridge).
+  #
+  # This assumes you start Mirage with the Action API enabled, e.g.
+  #   ./launch.sh --action-api
+  #
+  # kaczmarek.ai-dev tools will use this as the default, but you can always
+  # override it with CLI flags or environment variables.
+  action_api_base_url: "http://localhost:4001"
+
+
