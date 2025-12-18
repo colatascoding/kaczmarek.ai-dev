@@ -20,6 +20,11 @@
  *       prints a JSON summary of key documentation files and their first
  *       headings. This is intended to be pasted into an AI prompt or used
  *       by higher-level tooling.
+ *
+ *   kad ai
+ *     - Uses the same summary as `kad scan` but wraps it in a ready-to-paste
+ *       prompt that you can feed into an AI agent (e.g. Cursor) to adapt
+ *       agents/tools/workflows/prompts to the current repository.
  */
 
 const fs = require("fs");
@@ -113,19 +118,7 @@ function readFirstHeading(filePath) {
   return "";
 }
 
-function cmdInit(argv) {
-  const force = argv.includes("--force");
-  const cwd = process.cwd();
-  const baseConfig = loadConfig(cwd);
-  if (!baseConfig) return;
-  saveConfig(cwd, baseConfig, { force });
-}
-
-function cmdScan() {
-  const cwd = process.cwd();
-  const config = loadConfig(cwd);
-  if (!config) return;
-
+function buildSummary(cwd, config) {
   const docsDir = path.join(cwd, config.docs?.docsDir || "docs");
   const reviewDir = path.join(cwd, config.docs?.reviewDir || "review");
   const progressDir = path.join(cwd, config.docs?.progressDir || "progress");
@@ -153,7 +146,7 @@ function cmdScan() {
     });
   }
 
-  const summary = {
+  return {
     projectName: config.projectName || path.basename(cwd),
     configFile: CONFIG_FILENAME,
     docs: {
@@ -175,8 +168,61 @@ function cmdScan() {
       promptsFiles: toSummary(promptsFiles)
     }
   };
+}
 
+function cmdInit(argv) {
+  const force = argv.includes("--force");
+  const cwd = process.cwd();
+  const baseConfig = loadConfig(cwd);
+  if (!baseConfig) return;
+  saveConfig(cwd, baseConfig, { force });
+}
+
+function cmdScan() {
+  const cwd = process.cwd();
+  const config = loadConfig(cwd);
+  if (!config) return;
+
+  const summary = buildSummary(cwd, config);
   log(JSON.stringify(summary, null, 2));
+}
+
+function cmdAi() {
+  const cwd = process.cwd();
+  const config = loadConfig(cwd);
+  if (!config) return;
+
+  const summary = buildSummary(cwd, config);
+  const jsonBlock = JSON.stringify(summary, null, 2);
+
+  const lines = [
+    "You are an AI development assistant (kaczmarek.ai-dev style).",
+    "",
+    "You are helping adapt AI-related configuration, agents, tools, workflows, and prompts for this repository.",
+    "",
+    "Repository summary (from kad scan):",
+    "```json",
+    jsonBlock,
+    "```",
+    "",
+    "Goals:",
+    "- Understand how this repository organises its documentation (`docs`), reviews, and progress logs.",
+    "- Understand where AI-related assets live (`agents`, `tools`, `workflows`, `prompts`).",
+    "- Propose or refine a small, concrete plan for how AI helpers should interact with this repo.",
+    "- Suggest any missing or misaligned files (e.g. workflows, prompts) that would make it easier to use AI safely and effectively here.",
+    "",
+    "Constraints:",
+    "- Prefer small, incremental changes over large rewrites.",
+    "- Do not assume the ability to run commands; instead, describe the commands or file edits the user should perform.",
+    "- Respect existing project conventions you infer from the summary.",
+    "",
+    "Output:",
+    "- A short high-level analysis of how well the current layout matches the desired AI/dev workflow.",
+    "- A concise list of next actions (1–5 items) to improve AI integration for this repository.",
+    "- Suggested file additions or edits (with paths) where appropriate."
+  ];
+
+  log(lines.join("\n"));
 }
 
 function main() {
@@ -189,6 +235,9 @@ function main() {
     case "scan":
       cmdScan();
       return;
+    case "ai":
+      cmdAi();
+      return;
     case "-h":
     case "--help":
     case undefined:
@@ -198,7 +247,8 @@ function main() {
           "",
           "Usage:",
           "  kad init [--force]   Create kaczmarek-ai.config.json with defaults.",
-          "  kad scan             Print JSON summary of docs/review/progress files.",
+          "  kad scan             Print JSON summary of docs/review/progress + AI folders.",
+          "  kad ai               Print a ready-to-paste prompt that includes the scan summary.",
           ""
         ].join("\n")
       );

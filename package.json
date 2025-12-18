@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Local-first AI development helper CLI for any repository.",
   "bin": {
-    "kad": "./bin/kad.js"
+    "kad": "./bin/kad.js",
+    "kat": "./bin/kad.js"
   },
   "scripts": {
     "test": "node -e \"console.log('No tests defined yet')\""
