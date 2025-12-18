@@ -24,11 +24,15 @@ The primary, repo‑agnostic tool is the **`kad` CLI**, exposed via `bin/kad.js`
 
 - **`kad scan`**
   - Reads `kaczmarek-ai.config.json` (or uses defaults if it does not exist).
-  - Scans the configured `docs`, `review`, and `progress` directories for markdown files.
+  - Scans the configured:
+    - `docs`, `review`, and `progress` directories for markdown docs.
+    - `agents`, `tools`, `workflows`, and `prompts` directories (if they exist) for markdown files.
   - Prints a JSON summary including:
-    - Paths to documentation files.
+    - Paths to documentation/prompt/workflow files.
     - First heading found in each file.
-  - This JSON can be pasted directly into an AI prompt to quickly give context about a repository.
+  - This JSON can be pasted directly into an AI prompt so the AI understands:
+    - Where your **architecture/docs** live.
+    - Where your **agents**, **tools**, **workflows**, and **prompts** are defined.
 
 Run it from any repository (after cloning `kaczmarek.ai-dev` next to it) with:
 

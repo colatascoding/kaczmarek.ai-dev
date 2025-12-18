@@ -45,6 +45,12 @@ function loadConfig(cwd) {
         docsDir: "docs",
         reviewDir: "review",
         progressDir: "progress"
+      },
+      ai: {
+        agentsDir: "agents",
+        toolsDir: "tools",
+        workflowsDir: "workflows",
+        promptsDir: "prompts"
       }
     };
   }
@@ -124,9 +130,20 @@ function cmdScan() {
   const reviewDir = path.join(cwd, config.docs?.reviewDir || "review");
   const progressDir = path.join(cwd, config.docs?.progressDir || "progress");
 
+  // AI-related dirs (agents, tools, workflows, prompts) – optional.
+  const agentsDir = path.join(cwd, config.ai?.agentsDir || "agents");
+  const toolsDir = path.join(cwd, config.ai?.toolsDir || "tools");
+  const workflowsDir = path.join(cwd, config.ai?.workflowsDir || "workflows");
+  const promptsDir = path.join(cwd, config.ai?.promptsDir || "prompts");
+
   const docsFiles = listMarkdownFiles(docsDir, 2);
   const reviewFiles = listMarkdownFiles(reviewDir, 1);
   const progressFiles = listMarkdownFiles(progressDir, 1);
+
+  const agentsFiles = listMarkdownFiles(agentsDir, 2);
+  const toolsFiles = listMarkdownFiles(toolsDir, 2);
+  const workflowsFiles = listMarkdownFiles(workflowsDir, 2);
+  const promptsFiles = listMarkdownFiles(promptsDir, 2);
 
   function toSummary(files) {
     return files.map((f) => {
@@ -146,6 +163,16 @@ function cmdScan() {
       docsFiles: toSummary(docsFiles),
       reviewFiles: toSummary(reviewFiles),
       progressFiles: toSummary(progressFiles)
+    },
+    ai: {
+      agentsDir: path.relative(cwd, agentsDir),
+      toolsDir: path.relative(cwd, toolsDir),
+      workflowsDir: path.relative(cwd, workflowsDir),
+      promptsDir: path.relative(cwd, promptsDir),
+      agentsFiles: toSummary(agentsFiles),
+      toolsFiles: toSummary(toolsFiles),
+      workflowsFiles: toSummary(workflowsFiles),
+      promptsFiles: toSummary(promptsFiles)
     }
   };
 
