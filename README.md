@@ -100,3 +100,24 @@ For your Mirage project, there is an additional **Action Web API client**:
   - `test-all` – calls `POST /api/actions/test-all` with a simple permission context and prints the JSON report.
 
 See `tools/mirage/action_api_client.py` and `config/mirage-paths.yaml` for details.
+
+---
+
+### Example client project: `beautiful.web`
+
+This repository (`beautiful.web`) uses `kaczmarek.ai-dev` to help drive:
+
+- A **review/progress pairing** for visual features:
+  - `review/version0-0.md` – high-level description of the visualisation playground and shader topics.
+  - `progress/ai-dev.md` – detailed log of incremental visual and interaction changes.
+- A **shader-focused workflow**:
+  - `workflows/add_shader.md` – concrete steps for adding/extending GLSL shaders and their controls.
+  - `prompts/tasks/add-shader.md` – task prompt that instructs AI helpers how to touch `shaders/topics.html` / `shaders/topics.js` safely.
+- A minimal AI layout matching `kaczmarek-ai.config.json`:
+  - `docs/`, `review/`, `progress/`, `agents/`, `tools/`, `workflows/`, `prompts/`.
+
+The same `kad` CLI can be pointed at `beautiful.web` to:
+
+- Run `kad scan` and discover its docs/workflows/prompts.
+- Use `kad ai` or `kad run` to drive very small, testable changes to shaders and visualisations while keeping the review/progress docs in sync.
+
