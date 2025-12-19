@@ -9,6 +9,30 @@ It is designed to run locally, alongside your code, and to:
 
 This repository follows the concept described in `docs/concept.md`.
 
+**📚 Documentation:**
+- [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - Complete getting started guide
+- [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) - Project structure guide
+- [`docs/concept.md`](docs/concept.md) - Full concept and philosophy
+- [`docs/examples/`](docs/examples/) - Template files for reviews and progress logs
+
+---
+
+## Quick Start
+
+**New to kaczmarek.ai-dev?** Start here:
+
+1. **Read the getting started guide**: [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)
+2. **Initialize your project**: `node ./kaczmarek.ai-dev/bin/kad.js init`
+3. **Scan your repository**: `node ./kaczmarek.ai-dev/bin/kad.js scan`
+4. **Get AI help**: `node ./kaczmarek.ai-dev/bin/kad.js ai` (paste output into Cursor Chat)
+
+Or use the interactive onboarding:
+```bash
+node ./kaczmarek.ai-dev/bin/kad.js onboard
+```
+
+For detailed instructions, see [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md).
+
 ---
 
 ### kad CLI – generic helper for any repository
