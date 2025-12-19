@@ -13,7 +13,11 @@ This repository follows the concept described in `docs/concept.md`.
 - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) - Complete getting started guide
 - [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) - Project structure guide
 - [`docs/concept.md`](docs/concept.md) - Full concept and philosophy
-- [`docs/examples/`](docs/examples/) - Template files for reviews and progress logs
+- [`docs/CLOUD_AGENTS_DESIGN.md`](docs/CLOUD_AGENTS_DESIGN.md) - Cloud agents design (opt-in, modes, orchestration)
+- [`docs/CLOUD_AGENTS_QUICK_REF.md`](docs/CLOUD_AGENTS_QUICK_REF.md) - Cloud agents quick reference
+- [`docs/WORKFLOW_ORCHESTRATION_DESIGN.md`](docs/WORKFLOW_ORCHESTRATION_DESIGN.md) - Workflow orchestration system design
+- [`docs/WORKFLOW_ORCHESTRATION_SUMMARY.md`](docs/WORKFLOW_ORCHESTRATION_SUMMARY.md) - Workflow orchestration summary
+- [`docs/examples/`](docs/examples/) - Template files for reviews, progress logs, and workflows
 
 ---
 

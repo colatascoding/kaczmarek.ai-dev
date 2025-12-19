@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "projectName": "example-project",
+  "docs": {
+    "docsDir": "docs",
+    "reviewDir": "review",
+    "progressDir": "progress"
+  },
+  "ai": {
+    "agentsDir": "agents",
+    "toolsDir": "tools",
+    "workflowsDir": "workflows",
+    "promptsDir": "prompts"
+  },
+  "timeline": {
+    "diagramFile": "docs/TIMELINE.mmd"
+  },
+  "cloudAgents": {
+    "enabled": true,
+    "defaultMode": "interactive",
+    "modes": {
+      "interactive": {
+        "enabled": true,
+        "description": "Interactive cloud agent for goal-oriented tasks",
+        "autoApprove": false,
+        "maxRuntime": 3600,
+        "model": null,
+        "requiresApproval": true,
+        "createPR": true
+      },
+      "background": {
+        "enabled": true,
+        "description": "Background agent for long-running tasks",
+        "autoApprove": true,
+        "maxRuntime": 7200,
+        "model": null,
+        "requiresApproval": false,
+        "createPR": true
+      },
+      "scheduled": {
+        "enabled": false,
+        "description": "Scheduled agent for periodic tasks",
+        "schedule": "0 9 * * *",
+        "autoApprove": true,
+        "maxRuntime": 1800,
+        "model": null,
+        "requiresApproval": false,
+        "createPR": true,
+        "schedules": [
+          {
+            "name": "Daily Progress Update",
+            "cron": "0 9 * * *",
+            "task": "Update progress log with yesterday's work",
+            "enabled": false
+          },
+          {
+            "name": "Weekly Review Sync",
+            "cron": "0 10 * * 1",
+            "task": "Sync review document with progress",
+            "enabled": false
+          }
+        ]
+      },
+      "review": {
+        "enabled": true,
+        "description": "Agent for maintaining review/progress docs",
+        "autoApprove": false,
+        "maxRuntime": 600,
+        "model": null,
+        "requiresApproval": true,
+        "createPR": false
+      },
+      "rules": {
+        "enabled": true,
+        "description": "Agent for generating Cursor rules",
+        "autoApprove": false,
+        "maxRuntime": 900,
+        "model": null,
+        "requiresApproval": true,
+        "createPR": false
+      }
+    },
+    "orchestration": {
+      "maxConcurrent": 1,
+      "queueStrategy": "fifo",
+      "retryOnFailure": true,
+      "maxRetries": 3,
+      "timeout": 3600,
+      "priority": {
+        "interactive": 10,
+        "review": 8,
+        "rules": 7,
+        "background": 5,
+        "scheduled": 3
+      },
+      "notifications": {
+        "onStart": false,
+        "onComplete": true,
+        "onFailure": true,
+        "onPRCreated": true,
+        "channels": ["cli", "file"]
+      }
+    },
+    "environment": {
+      "snapshot": "POPULATED_FROM_SETTINGS",
+      "install": "npm install",
+      "start": "",
+      "terminals": [
+        {
+          "name": "Dev Server",
+          "command": "npm run dev"
+        }
+      ]
+    },
+    "security": {
+      "requirePrivacyMode": false,
+      "allowAutoApprove": true,
+      "requireBranchProtection": true,
+      "maxFileChanges": 50
+    },
+    "costs": {
+      "budget": {
+        "monthlyLimit": 50.00,
+        "warningThreshold": 0.8
+      },
+      "tracking": {
+        "enabled": true,
+        "logFile": ".kaczmarek-ai/agents/costs.json"
+      }
+    }
+  }
+}
+

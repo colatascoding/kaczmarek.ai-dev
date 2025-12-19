@@ -1,0 +1,213 @@
+name: "Implement New Feature"
+version: "1.0.0"
+description: "Complete workflow for implementing a new feature with testing, documentation, and review"
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run implement-feature"
+    params:
+      - name: "feature"
+        type: "string"
+        required: true
+        description: "Feature name or description"
+      - name: "priority"
+        type: "string"
+        default: "medium"
+        enum: ["low", "medium", "high"]
+
+steps:
+  # Step 1: Analyze requirements
+  - id: "analyze"
+    module: "analysis"
+    action: "analyze-requirements"
+    description: "Analyze feature requirements and estimate complexity"
+    inputs:
+      feature: "{{ trigger.feature }}"
+      priority: "{{ trigger.priority }}"
+    outputs:
+      - name: "complexity"
+        type: "string"
+        enum: ["simple", "medium", "complex"]
+      - name: "estimatedTime"
+        type: "number"
+        unit: "minutes"
+      - name: "dependencies"
+        type: "array"
+    onSuccess: "plan"
+    onFailure: "error-handler"
+    timeout: 300
+
+  # Step 2: Create implementation plan
+  - id: "plan"
+    module: "planning"
+    action: "create-implementation-plan"
+    description: "Create detailed implementation plan"
+    inputs:
+      feature: "{{ trigger.feature }}"
+      complexity: "{{ steps.analyze.outputs.complexity }}"
+      dependencies: "{{ steps.analyze.outputs.dependencies }}"
+    outputs:
+      - name: "plan"
+        type: "object"
+        properties:
+          tasks: "array"
+          files: "array"
+          tests: "array"
+    onSuccess: "implement"
+    onFailure: "error-handler"
+    timeout: 600
+
+  # Step 3: Implement feature
+  - id: "implement"
+    module: "implementation"
+    action: "implement-feature"
+    description: "Implement the feature using AI agent"
+    inputs:
+      plan: "{{ steps.plan.outputs.plan }}"
+      feature: "{{ trigger.feature }}"
+    outputs:
+      - name: "codeChanges"
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            file: "string"
+            changes: "string"
+      - name: "filesModified"
+        type: "array"
+    onSuccess: "test"
+    onFailure: "rollback"
+    timeout: 3600
+
+  # Step 4: Run tests
+  - id: "test"
+    module: "testing"
+    action: "run-tests"
+    description: "Run test suite to verify implementation"
+    inputs:
+      changes: "{{ steps.implement.outputs.codeChanges }}"
+      filesModified: "{{ steps.implement.outputs.filesModified }}"
+    outputs:
+      - name: "testResults"
+        type: "object"
+        properties:
+          passed: "boolean"
+          failed: "number"
+          coverage: "number"
+          duration: "number"
+    onSuccess:
+      condition: "{{ steps.test.outputs.testResults.passed }}"
+      then: "document"
+      else: "fix-tests"
+    onFailure: "error-handler"
+    timeout: 1800
+
+  # Step 5: Fix failing tests (conditional)
+  - id: "fix-tests"
+    module: "testing"
+    action: "fix-failing-tests"
+    description: "Fix failing tests using AI agent"
+    inputs:
+      testResults: "{{ steps.test.outputs.testResults }}"
+      codeChanges: "{{ steps.implement.outputs.codeChanges }}"
+    outputs:
+      - name: "fixed"
+        type: "boolean"
+      - name: "fixes"
+        type: "array"
+    onSuccess: "test"  # Retry testing
+    onFailure: "error-handler"
+    maxRetries: 3
+    retryDelay: 60
+    timeout: 900
+
+  # Step 6: Update documentation
+  - id: "document"
+    module: "documentation"
+    action: "update-docs"
+    description: "Update documentation for the new feature"
+    inputs:
+      feature: "{{ trigger.feature }}"
+      changes: "{{ steps.implement.outputs.codeChanges }}"
+      plan: "{{ steps.plan.outputs.plan }}"
+    outputs:
+      - name: "docsUpdated"
+        type: "array"
+    onSuccess: "review"
+    onFailure: "error-handler"
+    timeout: 600
+
+  # Step 7: Create review/PR
+  - id: "review"
+    module: "review"
+    action: "create-pr"
+    description: "Create pull request for review"
+    inputs:
+      feature: "{{ trigger.feature }}"
+      changes: "{{ steps.implement.outputs.codeChanges }}"
+      testResults: "{{ steps.test.outputs.testResults }}"
+      docsUpdated: "{{ steps.document.outputs.docsUpdated }}"
+    outputs:
+      - name: "prUrl"
+        type: "string"
+      - name: "prNumber"
+        type: "number"
+    onSuccess: "complete"
+    onFailure: "error-handler"
+    timeout: 300
+
+  # Step 8: Rollback (error recovery)
+  - id: "rollback"
+    module: "implementation"
+    action: "rollback-changes"
+    description: "Rollback code changes on failure"
+    inputs:
+      changes: "{{ steps.implement.outputs.codeChanges }}"
+    outputs:
+      - name: "rolledBack"
+        type: "boolean"
+    onSuccess: "error-handler"
+    onFailure: "error-handler"
+    timeout: 300
+
+  # Step 9: Error handler
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors and notify user"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+      state: "{{ workflow.state }}"
+    outputs:
+      - name: "handled"
+        type: "boolean"
+    onSuccess: "complete"
+    onFailure: "complete"  # Always complete, even on error
+    timeout: 60
+
+  # Step 10: Complete
+  - id: "complete"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify user of workflow completion"
+    inputs:
+      status: "{{ workflow.status }}"
+      executionId: "{{ workflow.executionId }}"
+      duration: "{{ workflow.duration }}"
+    outputs:
+      - name: "notified"
+        type: "boolean"
+    timeout: 30
+
+# Workflow metadata
+metadata:
+  author: "kaczmarek.ai-dev"
+  tags:
+    - "implementation"
+    - "feature"
+    - "testing"
+    - "documentation"
+  estimatedDuration: 7200  # seconds
+  requiresApproval: true
+
