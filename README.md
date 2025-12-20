@@ -158,6 +158,12 @@ The execution workflow automatically launches background agents to implement fea
 # Check status of a specific task
 ./kad agent status <task-id>
 
+# Debug a task (detailed information)
+./kad agent debug <task-id>
+
+# Mark task as complete (updates progress/review)
+./kad agent complete <task-id>
+
 # Start background processor (processes queued tasks automatically)
 ./kad agent start
 
@@ -174,9 +180,44 @@ The execution workflow automatically launches background agents to implement fea
 3. Launches background agent with prompt and tasks
 4. Agent task is queued for processing
 5. Background processor automatically processes queued tasks
-6. Tasks are marked as "ready" for Cursor Chat integration
+6. Simple tasks are executed automatically (file creation, test running)
+7. Complex tasks are marked as "ready" for Cursor Chat integration
+8. After implementation, mark complete: `./kad agent complete <task-id>`
+9. Progress and review files are automatically updated
+
+**Current Status:**
+- ✅ Basic execution engine (handles simple tasks)
+- ✅ Testing module (run tests, check coverage)
+- ✅ Task completion workflow (auto-updates progress/review)
+- 🔄 Enhanced execution (better parsing, more operations)
+- ⏳ Full automation (when Cursor Cloud Agents API available)
+
+See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for detailed status.
 
 See [`SETUP.md`](SETUP.md) for detailed setup instructions.
+
+## Testing
+
+Run the integration test suite:
+```bash
+./test-integration.sh
+```
+
+Or test individual components:
+```bash
+# Test workflows
+./kad workflow list
+./kad workflow validate workflows/execute-features.yaml
+
+# Test agents
+./kad agent list
+./kad agent debug <task-id>
+
+# Test modules
+node -e "const m=require('./lib/modules/module-loader'); console.log(new m('./lib/modules').listModules());"
+```
+
+See [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) for comprehensive testing instructions.
 
 ---
 

@@ -33,6 +33,6 @@ Initial implementation of kaczmarek.ai-dev workflow orchestration system. This v
 
 - [x] Test review workflow execution
 - [x] Create additional modules (testing, implementation, etc.)
-- [ ] Build visual editor extension
-- [ ] Add more workflow examples
+- [x] Build visual editor extension
+- [x] Add more workflow examples
 
