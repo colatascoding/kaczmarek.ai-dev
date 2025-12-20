@@ -157,9 +157,16 @@ function renderWorkflows(workflows) {
     <div class="list-item" onclick="showWorkflowDetails('${wf.id}')">
       <div class="list-item-header">
         <div class="list-item-title">${wf.name}</div>
-        <div class="list-item-meta">${new Date(wf.modified).toLocaleDateString()}</div>
+        <div class="list-item-meta">
+          ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
+          ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
+        </div>
       </div>
-      <div class="list-item-body">ID: ${wf.id}</div>
+      <div class="list-item-body">
+        <p><strong>ID:</strong> ${wf.id}</p>
+        ${wf.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${wf.versionTag}</span></p>` : ""}
+        ${wf.executionCount > 0 ? `<p><strong>Executions:</strong> ${wf.executionCount}</p>` : ""}
+      </div>
     </div>
   `).join("");
 }
@@ -176,6 +183,7 @@ async function showWorkflowDetails(workflowId) {
     modalBody.innerHTML = `
       <h2>${wf.name || workflowId}</h2>
       <p><strong>Version:</strong> ${wf.version || "N/A"}</p>
+      ${data.versionTag ? `<p><strong>Version Tag:</strong> <span class="version-link">${data.versionTag}</span></p>` : ""}
       <p><strong>Description:</strong> ${wf.description || "N/A"}</p>
       
       <h3 style="margin-top: 1.5rem;">Steps (${wf.steps?.length || 0})</h3>
@@ -185,7 +193,13 @@ async function showWorkflowDetails(workflowId) {
       ${data.executions?.length > 0 ? `
         <ul>
           ${data.executions.map(e => `
-            <li>${e.executionId} - ${e.status} - ${new Date(e.startedAt).toLocaleString()}</li>
+            <li>
+              <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${e.executionId}'); return false;">
+                ${e.executionId}
+              </a>
+              - ${e.status} - ${new Date(e.startedAt).toLocaleString()}
+              ${e.agents?.length > 0 ? ` (${e.agents.length} agents)` : ""}
+            </li>
           `).join("")}
         </ul>
       ` : "<p>No executions yet</p>"}
@@ -232,6 +246,9 @@ function renderAgents(agents, containerId) {
         <p><strong>Type:</strong> ${agent.type}</p>
         <p><strong>Tasks:</strong> ${agent.tasks?.length || 0}</p>
         <p><strong>Created:</strong> ${new Date(agent.createdAt).toLocaleString()}</p>
+        ${agent.executionId ? `<p><strong>Execution:</strong> <a href="#" onclick="event.stopPropagation(); showExecutionDetails('${agent.executionId}'); return false;">${agent.executionId.substring(0, 8)}...</a></p>` : ""}
+        ${agent.workflow ? `<p><strong>Workflow:</strong> ${agent.workflow.name}</p>` : ""}
+        ${agent.versionTag ? `<p><strong>Version:</strong> ${agent.versionTag}</p>` : ""}
       </div>
     </div>
   `).join("");
@@ -250,6 +267,22 @@ async function showAgentDetails(agentId) {
       <h2>Agent Task: ${agent.id}</h2>
       <p><strong>Status:</strong> <span class="status-badge ${agent.status}">${agent.status}</span></p>
       <p><strong>Type:</strong> ${agent.type}</p>
+      ${agent.execution ? `
+        <p><strong>Execution:</strong> 
+          <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${agent.execution.executionId}'); return false;">
+            ${agent.execution.executionId}
+          </a>
+        </p>
+      ` : ""}
+      ${agent.workflow ? `
+        <p><strong>Workflow:</strong> 
+          <a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;">
+            ${agent.workflow.name}
+          </a>
+        </p>
+        ${agent.workflow.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.workflow.versionTag}</span></p>` : ""}
+      ` : ""}
+      ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
       <p><strong>Created:</strong> ${new Date(agent.startedAt).toLocaleString()}</p>
       ${agent.readyAt ? `<p><strong>Ready:</strong> ${new Date(agent.readyAt).toLocaleString()}</p>` : ""}
       ${agent.completedAt ? `<p><strong>Completed:</strong> ${new Date(agent.completedAt).toLocaleString()}</p>` : ""}
@@ -300,13 +333,17 @@ function renderExecutions(executions, containerId) {
   container.innerHTML = executions.map(exec => `
     <div class="list-item" onclick="showExecutionDetails('${exec.executionId}')">
       <div class="list-item-header">
-        <div class="list-item-title">${exec.workflowId || "Unknown"}</div>
+        <div class="list-item-title">${exec.workflow?.name || exec.workflowId || "Unknown"}</div>
         <span class="status-badge ${exec.status}">${exec.status}</span>
       </div>
       <div class="list-item-body">
         <p><strong>Execution ID:</strong> ${exec.executionId}</p>
+        <p><strong>Workflow:</strong> ${exec.workflow?.name || exec.workflowId || "Unknown"}</p>
+        ${exec.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.workflow.versionTag}</span></p>` : ""}
+        ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
         <p><strong>Started:</strong> ${new Date(exec.startedAt).toLocaleString()}</p>
         ${exec.completedAt ? `<p><strong>Completed:</strong> ${new Date(exec.completedAt).toLocaleString()}</p>` : ""}
+        ${exec.agentCount > 0 ? `<p><strong>Agents:</strong> ${exec.agentCount}</p>` : ""}
       </div>
     </div>
   `).join("");
@@ -319,14 +356,29 @@ async function showExecutionDetails(executionId) {
   try {
     const data = await apiCall(`/api/executions/${executionId}`);
     const exec = data.execution;
-    
     const modalBody = document.getElementById("modal-body");
     modalBody.innerHTML = `
       <h2>Execution: ${exec.executionId}</h2>
-      <p><strong>Workflow:</strong> ${exec.workflowId}</p>
+      <p><strong>Workflow:</strong> ${data.workflow ? `<a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${data.workflow.id}'); return false;">${data.workflow.name}</a>` : exec.workflowId || "Unknown"}</p>
+      ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
+      ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
       <p><strong>Status:</strong> <span class="status-badge ${exec.status}">${exec.status}</span></p>
       <p><strong>Started:</strong> ${new Date(exec.startedAt).toLocaleString()}</p>
       ${exec.completedAt ? `<p><strong>Completed:</strong> ${new Date(exec.completedAt).toLocaleString()}</p>` : ""}
+      
+      ${data.agents?.length > 0 ? `
+        <h3 style="margin-top: 1.5rem;">Agents (${data.agents.length})</h3>
+        <ul>
+          ${data.agents.map(a => `
+            <li>
+              <a href="#" onclick="closeModal(); switchView('agents'); showAgentDetails('${a.id}'); return false;">
+                ${a.id.substring(0, 8)}...
+              </a>
+              - ${a.status}
+            </li>
+          `).join("")}
+        </ul>
+      ` : ""}
       
       <h3 style="margin-top: 1.5rem;">Steps (${data.steps?.length || 0})</h3>
       <pre><code>${JSON.stringify(data.steps || [], null, 2)}</code></pre>
@@ -412,6 +464,8 @@ function renderVersionSummary(version, containerId) {
             <span class="progress-text">${version.completedStepsCount}/${version.nextStepsCount} tasks</span>
           </div>
         ` : ""}
+        ${version.executionsCount > 0 ? `<span><strong>Executions:</strong> ${version.executionsCount}</span>` : ""}
+        ${version.agentsCount > 0 ? `<span><strong>Agents:</strong> ${version.agentsCount}</span>` : ""}
       </div>
     </div>
   `;

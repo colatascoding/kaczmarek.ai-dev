@@ -466,3 +466,30 @@ code {
   line-height: 1.5;
 }
 
+/* Version Link */
+.version-link {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.version-link:hover {
+  background: var(--primary-dark);
+}
+
+/* Links in modals */
+.modal-content a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.modal-content a:hover {
+  text-decoration: underline;
+}
+
