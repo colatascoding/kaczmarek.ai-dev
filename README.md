@@ -17,6 +17,7 @@ This repository follows the concept described in `docs/concept.md`.
 - [`docs/CLOUD_AGENTS_QUICK_REF.md`](docs/CLOUD_AGENTS_QUICK_REF.md) - Cloud agents quick reference
 - [`docs/WORKFLOW_ORCHESTRATION_DESIGN.md`](docs/WORKFLOW_ORCHESTRATION_DESIGN.md) - Workflow orchestration system design
 - [`docs/WORKFLOW_ORCHESTRATION_SUMMARY.md`](docs/WORKFLOW_ORCHESTRATION_SUMMARY.md) - Workflow orchestration summary
+- [`docs/WORKFLOW_DATA_PERSISTENCE.md`](docs/WORKFLOW_DATA_PERSISTENCE.md) - What data is persisted and what's in git
 - [`docs/examples/`](docs/examples/) - Template files for reviews, progress logs, and workflows
 
 ---
@@ -106,15 +107,29 @@ The primary, repo‑agnostic tool is the **`kad` CLI**, exposed via `bin/kad.js`
 
 Run it from any repository (after cloning `kaczmarek.ai-dev` next to it) with:
 
-- `node ./kaczmarek.ai-dev/bin/kad.js init`
-- `node ./kaczmarek.ai-dev/bin/kad.js scan`
-- `node ./kaczmarek.ai-dev/bin/kad.js ai`
-- `node ./kaczmarek.ai-dev/bin/kad.js progress`
-- `node ./kaczmarek.ai-dev/bin/kad.js run`
-- `node ./kaczmarek.ai-dev/bin/kad.js changes`
-- `node ./kaczmarek.ai-dev/bin/kad.js timeline`
+**Option 1: Use the wrapper script** (from kaczmarek.ai-dev directory):
+```bash
+./kad init
+./kad scan
+./kad workflow list
+```
 
-> Note: Once this project is published as a real npm package, you will be able to install it globally and run `kad` (and its subcommands) without the `node ./...` prefix.
+**Option 2: Use node directly**:
+```bash
+node ./kaczmarek.ai-dev/bin/kad.js init
+node ./kaczmarek.ai-dev/bin/kad.js scan
+node ./kaczmarek.ai-dev/bin/kad.js workflow list
+```
+
+**Option 3: Install globally** (recommended):
+```bash
+cd kaczmarek.ai-dev
+npm install
+npm link  # Creates global symlink
+# Now you can use 'kad' from anywhere
+```
+
+See [`SETUP.md`](SETUP.md) for detailed setup instructions.
 
 ---
 

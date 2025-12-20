@@ -123,12 +123,14 @@ Use `{{ }}` syntax for template variables:
 
 ## Database
 
-Workflow state is stored in SQLite at `.kaczmarek-ai/workflows.db`:
+Workflow execution state is stored in SQLite at `.kaczmarek-ai/workflows.db`:
 
-- `workflows` - Workflow definitions
+- `workflows` - Cached workflow definitions (also in YAML files)
 - `executions` - Workflow executions
 - `step_executions` - Individual step results
 - `execution_history` - Audit trail
+
+**Important**: The database is **NOT** committed to git (it's in `.gitignore`). Only workflow YAML files are version controlled. The database contains local execution state that is specific to each developer's environment.
 
 ## Examples
 
