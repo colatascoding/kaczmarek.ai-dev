@@ -1101,7 +1101,13 @@ function cmdWorkflowRun(argv) {
   for (let i = 1; i < argv.length; i += 2) {
     if (argv[i] && argv[i].startsWith("--")) {
       const key = argv[i].slice(2);
-      const value = argv[i + 1] || "";
+      let value = argv[i + 1] || "";
+      
+      // Try to parse as number if it looks like a number
+      if (value && !isNaN(value) && !isNaN(parseFloat(value))) {
+        value = parseFloat(value);
+      }
+      
       params[key] = value;
     }
   }
@@ -1125,8 +1131,8 @@ function cmdWorkflowRun(argv) {
         log(`Check status with: kad workflow status ${result.id}`);
         engine.close();
       })
-      .catch((error) => {
-        error(`Workflow execution failed: ${String(error)}`);
+      .catch((err) => {
+        error(`Workflow execution failed: ${String(err)}`);
         engine.close();
         process.exitCode = 1;
       });

@@ -129,6 +129,23 @@ npm link  # Creates global symlink
 # Now you can use 'kad' from anywhere
 ```
 
+## Workflows
+
+The project includes several built-in workflows:
+
+- **`review-self`**: Reviews the repository and generates review/progress updates
+- **`execute-features`**: Extracts next steps from review and generates implementation prompts
+
+Run workflows with:
+```bash
+./kad workflow run <workflow-name> [--param value]
+```
+
+Example:
+```bash
+./kad workflow run execute-features --maxTasks 3
+```
+
 See [`SETUP.md`](SETUP.md) for detailed setup instructions.
 
 ---

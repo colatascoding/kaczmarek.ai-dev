@@ -1,0 +1,225 @@
+name: "Execute Features from Review"
+version: "1.0.0"
+description: "Workflow to implement features from review document's Next Steps section"
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run execute-features"
+    params:
+      - name: "maxTasks"
+        type: "number"
+        default: 3
+        description: "Maximum number of tasks to implement"
+      - name: "skipTests"
+        type: "boolean"
+        default: false
+        description: "Skip test execution"
+
+steps:
+  # Step 1: Scan repository
+  - id: "scan"
+    module: "review"
+    action: "scan-repository"
+    description: "Scan repository structure"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "summary"
+        type: "object"
+    onSuccess: "find-version"
+    onFailure: "error-handler"
+
+  # Step 2: Find current version
+  - id: "find-version"
+    module: "review"
+    action: "find-current-version"
+    description: "Find current review and progress files"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      reviewDir: "review"
+      progressDir: "progress"
+    outputs:
+      - name: "versionTag"
+        type: "string"
+      - name: "reviewFile"
+        type: "string"
+      - name: "progressFile"
+        type: "string"
+    onSuccess:
+      condition: "{{ steps.find-version.outputs.found }}"
+      then: "read-review"
+      else: "error-no-version"
+    onFailure: "error-handler"
+
+  # Step 3: Read review file
+  - id: "read-review"
+    module: "review"
+    action: "read-review"
+    description: "Read current review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "read-progress"
+    onFailure: "error-handler"
+
+  # Step 4: Read progress file
+  - id: "read-progress"
+    module: "review"
+    action: "read-progress"
+    description: "Read current progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "extract-next-steps"
+    onFailure: "extract-next-steps"  # Continue even if progress doesn't exist
+
+  # Step 5: Extract next steps from review
+  - id: "extract-next-steps"
+    module: "implementation"
+    action: "extract-next-steps"
+    description: "Extract next steps from review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "nextSteps"
+        type: "array"
+      - name: "count"
+        type: "number"
+    onSuccess:
+      condition: "{{ steps.extract-next-steps.outputs.count > 0 }}"
+      then: "create-plan"
+      else: "no-tasks"
+    onFailure: "error-handler"
+
+  # Step 6: Create implementation plan
+  - id: "create-plan"
+    module: "implementation"
+    action: "create-plan"
+    description: "Create implementation plan from next steps"
+    inputs:
+      nextSteps: "{{ steps.extract-next-steps.outputs.nextSteps }}"
+      maxTasks: "{{ trigger.maxTasks || 3 }}"
+    outputs:
+      - name: "plan"
+        type: "object"
+    onSuccess: "generate-prompt"
+    onFailure: "error-handler"
+
+  # Step 7: Generate implementation prompt
+  - id: "generate-prompt"
+    module: "implementation"
+    action: "generate-implementation-prompt"
+    description: "Generate prompt for implementing features"
+    inputs:
+      summary: "{{ steps.scan.outputs.summary }}"
+      reviewContent: "{{ steps.read-review.outputs.content }}"
+      progressContent: "{{ steps.read-progress.outputs.content }}"
+      nextSteps: "{{ steps.extract-next-steps.outputs.nextSteps }}"
+      versionTag: "{{ steps.find-version.outputs.versionTag }}"
+    outputs:
+      - name: "prompt"
+        type: "string"
+    onSuccess: "log-prompt"
+    onFailure: "error-handler"
+
+  # Step 8: Log the prompt
+  - id: "log-prompt"
+    module: "system"
+    action: "log"
+    description: "Log implementation prompt"
+    inputs:
+      message: "Implementation prompt generated. Use this with Cursor Chat or AI assistant to implement features."
+      level: "info"
+    onSuccess: "check-git-before"
+    onFailure: "error-handler"
+
+  # Step 9: Check git status before implementation
+  - id: "check-git-before"
+    module: "implementation"
+    action: "check-git-status"
+    description: "Check git status before implementation"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "files"
+        type: "array"
+      - name: "hasChanges"
+        type: "boolean"
+    onSuccess: "append-progress"
+    onFailure: "append-progress"  # Continue even if git check fails
+
+  # Step 10: Append to progress file
+  - id: "append-progress"
+    module: "review"
+    action: "append-progress"
+    description: "Append execution workflow entry to progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+      entry: |
+        **Execution Workflow Execution**
+        
+        - Extracted {{ steps.extract-next-steps.outputs.count }} next steps from review
+        - Created implementation plan with {{ steps.create-plan.outputs.plan.totalTasks }} tasks
+        - Generated implementation prompt
+        
+        Next steps: Use the generated prompt with Cursor Chat or AI assistant to implement the features.
+        Then run tests and update progress/review files accordingly.
+    onSuccess: "complete"
+    onFailure: "complete"  # Don't fail if progress file doesn't exist
+
+  # Step 11: No tasks found
+  - id: "no-tasks"
+    module: "system"
+    action: "log"
+    description: "Log that no tasks were found"
+    inputs:
+      message: "No uncompleted tasks found in review file. All tasks may be completed, or review file needs updating."
+      level: "warn"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 12: No version files
+  - id: "error-no-version"
+    module: "system"
+    action: "log"
+    description: "Log that version files are missing"
+    inputs:
+      message: "No version review files found. Please create review/versionX-Y.md first."
+      level: "error"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 13: Error handler
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 14: Complete
+  - id: "complete"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify completion"
+    inputs:
+      status: "completed"
+      executionId: "{{ workflow.executionId }}"
+    onSuccess: "log-complete"
+    onFailure: "log-complete"
+
+  - id: "log-complete"
+    module: "system"
+    action: "log"
+    description: "Final log"
+    inputs:
+      message: "Execution workflow completed. Use the generated prompt above to implement features, or use 'kad run' to get the implementation prompt."
+      level: "info"
+
