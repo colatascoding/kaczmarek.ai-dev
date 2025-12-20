@@ -183,8 +183,25 @@ async function showWorkflowDetails(workflowId) {
     const data = await apiCall(`/api/workflows/${workflowId}`);
     const wf = data.workflow;
     
+    console.log("Workflow data:", { workflowId, hasWorkflow: !!wf, stepsCount: wf?.steps?.length, workflow: wf });
+    
+    if (!wf) {
+      console.error("No workflow data received");
+      alert("Failed to load workflow data. Check console for details.");
+      return;
+    }
+    
     const modalBody = document.getElementById("modal-body");
-    modalBody.innerHTML = `
+    if (!modalBody) {
+      console.error("Modal body element not found");
+      return;
+    }
+    
+    // Clear any previous content
+    modalBody.innerHTML = "";
+    
+    // Build the content step by step to avoid template string issues
+    let content = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0;">${wf.name || workflowId}</h2>
         <button class="btn btn-primary" onclick="runWorkflow('${workflowId}')">
@@ -214,82 +231,10 @@ async function showWorkflowDetails(workflowId) {
       ` : ""}
       
       <h3 style="margin-top: 1.5rem;">Workflow Steps (${wf.steps?.length || 0})</h3>
-      <div class="workflow-steps-view">
-        ${(wf.steps || []).map((step, index) => {
-          const stepId = step.id || `step-${index}`;
-          const module = step.module || "unknown";
-          const action = step.action || "unknown";
-          const description = step.description || "";
-          const inputs = step.inputs || {};
-          const outputs = step.outputs || [];
-          const onSuccess = step.onSuccess || {};
-          const onFailure = step.onFailure || "";
-          
-          // Determine next step
-          let nextStep = null;
-          if (typeof onSuccess === "string") {
-            nextStep = onSuccess;
-          } else if (onSuccess && onSuccess.then) {
-            nextStep = `${onSuccess.then} (if condition)`;
-          }
-          
-          return `
-            <div class="workflow-step-card">
-              <div class="workflow-step-header">
-                <div class="workflow-step-number">${index + 1}</div>
-                <div class="workflow-step-info">
-                  <h4>${stepId}</h4>
-                  <div class="workflow-step-meta">
-                    <span class="module-badge">${module}</span>
-                    <span class="action-badge">${action}</span>
-                  </div>
-                </div>
-              </div>
-              ${description ? `<p class="workflow-step-description">${description}</p>` : ""}
-              
-              ${Object.keys(inputs).length > 0 ? `
-                <div class="workflow-step-section">
-                  <strong>Inputs:</strong>
-                  <pre class="workflow-step-code">${JSON.stringify(inputs, null, 2)}</pre>
-                </div>
-              ` : ""}
-              
-              ${outputs.length > 0 ? `
-                <div class="workflow-step-section">
-                  <strong>Outputs:</strong>
-                  <ul class="workflow-step-list">
-                    ${outputs.map(o => `<li><code>${o.name}</code> (${o.type || "any"})</li>`).join("")}
-                  </ul>
-                </div>
-              ` : ""}
-              
-              <div class="workflow-step-routing">
-                ${nextStep ? `
-                  <div class="routing-item">
-                    <span class="routing-label">On Success:</span>
-                    ${typeof onSuccess === "object" && onSuccess.condition ? `
-                      <span class="routing-condition">${onSuccess.condition}</span>
-                      <span class="routing-arrow">→</span>
-                      <span class="routing-target">${onSuccess.then}</span>
-                      ${onSuccess.else ? `<span class="routing-else">else → ${onSuccess.else}</span>` : ""}
-                    ` : `
-                      <span class="routing-arrow">→</span>
-                      <span class="routing-target">${nextStep}</span>
-                    `}
-                  </div>
-                ` : ""}
-                ${onFailure ? `
-                  <div class="routing-item routing-failure">
-                    <span class="routing-label">On Failure:</span>
-                    <span class="routing-arrow">→</span>
-                    <span class="routing-target">${onFailure}</span>
-                  </div>
-                ` : ""}
-              </div>
-            </div>
-          `;
-        }).join("")}
+      ${wf.steps && Array.isArray(wf.steps) && wf.steps.length > 0 ? `
+      <div class="workflow-steps-view" id="workflow-steps-container" style="display: block; visibility: visible;">
       </div>
+      ` : `<p style="color: var(--text-light); font-style: italic;">No steps defined in this workflow.</p>`}
       
       <details style="margin-top: 1.5rem;">
         <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">Raw Workflow JSON</summary>
@@ -312,7 +257,138 @@ async function showWorkflowDetails(workflowId) {
       ` : "<p>No executions yet</p>"}
     `;
     
-    document.getElementById("modal").classList.add("active");
+    // Set the content
+    modalBody.innerHTML = content;
+    console.log("Modal content set, steps count:", wf.steps?.length || 0);
+    
+    // Render steps using DOM API to avoid template string issues
+    const stepsContainer = modalBody.querySelector("#workflow-steps-container");
+    if (stepsContainer && wf.steps && Array.isArray(wf.steps) && wf.steps.length > 0) {
+      console.log("Rendering", wf.steps.length, "steps using DOM API");
+      
+      wf.steps.forEach((step, index) => {
+        try {
+          const stepCard = document.createElement("div");
+          stepCard.className = "workflow-step-card";
+          
+          const stepId = step.id || `step-${index}`;
+          const module = step.module || "unknown";
+          const action = step.action || "unknown";
+          const description = step.description || "";
+          const inputs = step.inputs || {};
+          const outputs = step.outputs || [];
+          const onSuccess = step.onSuccess;
+          const onFailure = step.onFailure || "";
+          
+          // Build success routing display
+          let successDisplay = "";
+          if (onSuccess) {
+            if (typeof onSuccess === "string") {
+              successDisplay = `
+                <div class="routing-item">
+                  <span class="routing-label">On Success:</span>
+                  <span class="routing-arrow">→</span>
+                  <span class="routing-target">${onSuccess}</span>
+                </div>
+              `;
+            } else if (typeof onSuccess === "object" && onSuccess.then) {
+              successDisplay = `
+                <div class="routing-item">
+                  <span class="routing-label">On Success:</span>
+                  ${onSuccess.condition ? `<span class="routing-condition">${onSuccess.condition}</span>` : ""}
+                  <span class="routing-arrow">→</span>
+                  <span class="routing-target">${onSuccess.then}</span>
+                  ${onSuccess.else ? `<span class="routing-else">else → ${onSuccess.else}</span>` : ""}
+                </div>
+              `;
+            }
+          }
+          
+          // Build inputs section
+          let inputsHtml = "";
+          if (Object.keys(inputs).length > 0) {
+            inputsHtml = `
+              <div class="workflow-step-section">
+                <strong>Inputs:</strong>
+                <pre class="workflow-step-code">${JSON.stringify(inputs, null, 2)}</pre>
+              </div>
+            `;
+          }
+          
+          // Build outputs section
+          let outputsHtml = "";
+          if (outputs && outputs.length > 0) {
+            const outputsList = outputs.map(o => {
+              const name = typeof o === "string" ? o : (o.name || "unknown");
+              const type = typeof o === "object" ? (o.type || "any") : "any";
+              return `<li><code>${name}</code> (${type})</li>`;
+            }).join("");
+            outputsHtml = `
+              <div class="workflow-step-section">
+                <strong>Outputs:</strong>
+                <ul class="workflow-step-list">${outputsList}</ul>
+              </div>
+            `;
+          }
+          
+          // Build failure routing
+          let failureHtml = "";
+          if (onFailure) {
+            failureHtml = `
+              <div class="routing-item routing-failure">
+                <span class="routing-label">On Failure:</span>
+                <span class="routing-arrow">→</span>
+                <span class="routing-target">${onFailure}</span>
+              </div>
+            `;
+          }
+          
+          stepCard.innerHTML = `
+            <div class="workflow-step-header">
+              <div class="workflow-step-number">${index + 1}</div>
+              <div class="workflow-step-info">
+                <h4>${stepId}</h4>
+                <div class="workflow-step-meta">
+                  <span class="module-badge">${module}</span>
+                  <span class="action-badge">${action}</span>
+                </div>
+              </div>
+            </div>
+            ${description ? `<p class="workflow-step-description">${description}</p>` : ""}
+            ${inputsHtml}
+            ${outputsHtml}
+            <div class="workflow-step-routing">
+              ${successDisplay}
+              ${failureHtml}
+            </div>
+          `;
+          
+          stepsContainer.appendChild(stepCard);
+        } catch (e) {
+          console.error("Error rendering step:", e, step);
+          const errorCard = document.createElement("div");
+          errorCard.className = "workflow-step-card";
+          errorCard.innerHTML = `<p style="color: red;">Error rendering step: ${e.message}</p>`;
+          stepsContainer.appendChild(errorCard);
+        }
+      });
+      
+      console.log("Steps rendered successfully, container now has", stepsContainer.children.length, "step cards");
+      // Ensure visibility
+      stepsContainer.style.display = "block";
+      stepsContainer.style.visibility = "visible";
+    } else if (wf.steps && Array.isArray(wf.steps) && wf.steps.length > 0) {
+      console.error("Steps container not found but steps exist!");
+    }
+    
+    // Show the modal
+    const modal = document.getElementById("modal");
+    if (modal) {
+      modal.classList.add("active");
+      console.log("Modal opened");
+    } else {
+      console.error("Modal element not found");
+    }
   } catch (error) {
     console.error("Failed to load workflow details:", error);
   }
