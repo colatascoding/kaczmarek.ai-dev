@@ -1270,6 +1270,129 @@ function cmdWorkflowShow(argv) {
   }
 }
 
+function cmdAgent(argv) {
+  const [subcmd, ...rest] = argv;
+
+  if (!subcmd) {
+    log(
+      [
+        "Agent commands:",
+        "",
+        "  kad agent status <task-id>    Check status of an agent task",
+        "  kad agent list               List all agent tasks",
+        "  kad agent process <task-id>  Process an agent task",
+        ""
+      ].join("\n")
+    );
+    return;
+  }
+
+  const WorkflowEngine = require("../lib/workflow/engine");
+  const engine = new WorkflowEngine();
+  const ModuleLoader = require("../lib/modules/module-loader");
+  const loader = new ModuleLoader(path.join(__dirname, "..", "lib", "modules"));
+  const agentModule = loader.loadModule("agent");
+
+  switch (subcmd) {
+    case "status": {
+      const taskId = rest[0];
+      if (!taskId) {
+        error("Task ID required. Usage: kad agent status <task-id>");
+        process.exitCode = 1;
+        return;
+      }
+
+      const action = loader.getAction("agent", "check-status");
+      action({ taskId, cwd: process.cwd() }, {
+        logger: { info: log, error, warn: log },
+        executionId: taskId
+      }).then(result => {
+        if (result.success) {
+          log(`Agent Task: ${result.task.id}`);
+          log(`Status: ${result.task.status}`);
+          log(`Type: ${result.task.type}`);
+          log(`Tasks: ${result.task.tasksCount}`);
+          if (result.task.startedAt) {
+            log(`Started: ${result.task.startedAt}`);
+          }
+          if (result.task.completedAt) {
+            log(`Completed: ${result.task.completedAt}`);
+          }
+        } else {
+          error(result.error || "Failed to check status");
+          process.exitCode = 1;
+        }
+        engine.close();
+      }).catch(e => {
+        error(`Failed to check agent status: ${String(e)}`);
+        engine.close();
+        process.exitCode = 1;
+      });
+      return;
+    }
+
+    case "list": {
+      const queueDir = path.join(process.cwd(), ".kaczmarek-ai", "agent-queue");
+      if (!fs.existsSync(queueDir)) {
+        log("No agent tasks found.");
+        return;
+      }
+
+      const files = fs.readdirSync(queueDir).filter(f => f.endsWith(".json"));
+      if (files.length === 0) {
+        log("No agent tasks found.");
+        return;
+      }
+
+      log(`Found ${files.length} agent task(s):\n`);
+      files.forEach(file => {
+        const taskFile = path.join(queueDir, file);
+        try {
+          const task = JSON.parse(fs.readFileSync(taskFile, "utf8"));
+          log(`  ${task.id} - ${task.status} (${task.type}) - ${task.tasks?.length || 0} tasks`);
+        } catch (e) {
+          log(`  ${file} - (error reading file)`);
+        }
+      });
+      return;
+    }
+
+    case "process": {
+      const taskId = rest[0];
+      if (!taskId) {
+        error("Task ID required. Usage: kad agent process <task-id>");
+        process.exitCode = 1;
+        return;
+      }
+
+      const action = loader.getAction("agent", "process-task");
+      action({ taskId, cwd: process.cwd() }, {
+        logger: { info: log, error, warn: log },
+        executionId: taskId
+      }).then(result => {
+        if (result.success) {
+          log(`Task ${taskId} is now being processed.`);
+          log(result.message || "");
+        } else {
+          error(result.error || "Failed to process task");
+          process.exitCode = 1;
+        }
+        engine.close();
+      }).catch(e => {
+        error(`Failed to process agent task: ${String(e)}`);
+        engine.close();
+        process.exitCode = 1;
+      });
+      return;
+    }
+
+    default:
+      error(`Unknown agent command: ${subcmd}`);
+      process.exitCode = 1;
+      return;
+  }
+}
+
 function main() {
   const [, , cmd, ...rest] = process.argv;
 
@@ -1307,6 +1430,9 @@ function main() {
     case "workflow":
       cmdWorkflow(rest);
       return;
+    case "agent":
+      cmdAgent(rest);
+      return;
     case "-h":
     case "--help":
     case undefined:
@@ -1326,6 +1452,7 @@ function main() {
           "  kad rules-generate       Launch background task to analyze codebase and interactively create rules.",
           "  kad onboard              Interactive onboarding wizard to set up your project.",
           "  kad workflow             Workflow orchestration commands (list, run, status, validate, show).",
+          "  kad agent                Agent management commands (status, list, process).",
           ""
         ].join("\n")
       );

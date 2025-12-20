@@ -123,17 +123,25 @@ steps:
     outputs:
       - name: "prompt"
         type: "string"
-    onSuccess: "log-prompt"
+    onSuccess: "launch-agent"
     onFailure: "error-handler"
 
-  # Step 8: Log the prompt
-  - id: "log-prompt"
-    module: "system"
-    action: "log"
-    description: "Log implementation prompt"
+  # Step 8: Launch background agent
+  - id: "launch-agent"
+    module: "agent"
+    action: "launch-background"
+    description: "Launch background agent to implement features"
     inputs:
-      message: "Implementation prompt generated. Use this with Cursor Chat or AI assistant to implement features."
-      level: "info"
+      prompt: "{{ steps.generate-prompt.outputs.prompt }}"
+      tasks: "{{ steps.create-plan.outputs.plan.tasks }}"
+      cwd: "{{ workflow.cwd }}"
+      agentType: "cursor"
+      maxIterations: "{{ trigger.maxTasks || 3 }}"
+    outputs:
+      - name: "agentTaskId"
+        type: "string"
+      - name: "status"
+        type: "string"
     onSuccess: "check-git-before"
     onFailure: "error-handler"
 
@@ -165,9 +173,10 @@ steps:
         - Extracted {{ steps.extract-next-steps.outputs.count }} next steps from review
         - Created implementation plan with {{ steps.create-plan.outputs.plan.totalTasks }} tasks
         - Generated implementation prompt
+        - Launched background agent (task ID: {{ steps.launch-agent.outputs.agentTaskId }})
         
-        Next steps: Use the generated prompt with Cursor Chat or AI assistant to implement the features.
-        Then run tests and update progress/review files accordingly.
+        Background agent is processing the implementation tasks. Check status with:
+        `kad agent status {{ steps.launch-agent.outputs.agentTaskId }}`
     onSuccess: "complete"
     onFailure: "complete"  # Don't fail if progress file doesn't exist
 
@@ -220,6 +229,6 @@ steps:
     action: "log"
     description: "Final log"
     inputs:
-      message: "Execution workflow completed. Use the generated prompt above to implement features, or use 'kad run' to get the implementation prompt."
+      message: "Execution workflow completed. Background agent launched. The agent will process the implementation tasks in the background."
       level: "info"
 
