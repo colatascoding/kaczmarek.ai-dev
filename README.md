@@ -135,6 +135,7 @@ The project includes several built-in workflows:
 
 - **`review-self`**: Reviews the repository and generates review/progress updates
 - **`execute-features`**: Extracts next steps from review and launches background agent to implement features
+  - **Automatic version transition**: When all tasks are complete, automatically creates next version
 
 Run workflows with:
 ```bash
@@ -145,6 +146,14 @@ Example:
 ```bash
 ./kad workflow run execute-features --maxTasks 3
 ```
+
+**Automatic Version Transition:**
+- When no uncompleted tasks are found, workflow checks if all tasks are complete
+- If all complete, automatically creates next version (e.g., version0-1 → version0-2)
+- Marks previous version as "Complete" with completion date
+- New version starts with empty goals and next steps ready for planning
+
+See [`docs/VERSION_TRANSITION.md`](docs/VERSION_TRANSITION.md) for details.
 
 ## Background Agents
 

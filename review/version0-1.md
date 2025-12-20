@@ -36,3 +36,16 @@ Initial implementation of kaczmarek.ai-dev workflow orchestration system. This v
 - [x] Build visual editor extension
 - [x] Add more workflow examples
 
+### Phase 2: Enhanced Execution & Automation
+
+- [ ] Enhance execution engine (better task parsing, more file operations)
+- [ ] Add automatic task completion after successful execution
+- [ ] Implement test verification before task completion
+- [ ] Add git integration (commit, branch operations)
+- [ ] Create refactoring module
+- [ ] Create bug-fixing module
+- [ ] Create documentation module (beyond basic progress updates)
+- [ ] Add workflow to transition between versions
+- [ ] Integrate with Cursor Cloud Agents API (when available)
+- [ ] Build visual workflow editor extension
+

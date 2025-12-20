@@ -92,7 +92,7 @@ steps:
     onSuccess:
       condition: "{{ steps.extract-next-steps.outputs.count > 0 }}"
       then: "create-plan"
-      else: "no-tasks"
+      else: "check-all-complete"
     onFailure: "error-handler"
 
   # Step 6: Create implementation plan
@@ -180,7 +180,56 @@ steps:
     onSuccess: "complete"
     onFailure: "complete"  # Don't fail if progress file doesn't exist
 
-  # Step 11: No tasks found
+  # Step 11: Check if all tasks are complete
+  - id: "check-all-complete"
+    module: "review"
+    action: "check-all-tasks-complete"
+    description: "Check if all tasks in review are completed"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "allComplete"
+        type: "boolean"
+      - name: "totalTasks"
+        type: "number"
+      - name: "completedTasks"
+        type: "number"
+    onSuccess:
+      condition: "{{ steps.check-all-complete.outputs.allComplete }}"
+      then: "create-next-version"
+      else: "no-tasks"
+    onFailure: "no-tasks"
+
+  # Step 11a: Create next version if all tasks complete
+  - id: "create-next-version"
+    module: "review"
+    action: "create-next-version"
+    description: "Create next version since all tasks are complete"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      currentVersionTag: "{{ steps.find-version.outputs.versionTag }}"
+    outputs:
+      - name: "versionTag"
+        type: "string"
+      - name: "reviewFile"
+        type: "string"
+      - name: "progressFile"
+        type: "string"
+    onSuccess: "log-version-created"
+    onFailure: "no-tasks"
+
+  # Step 11b: Log version creation
+  - id: "log-version-created"
+    module: "system"
+    action: "log"
+    description: "Log that new version was created"
+    inputs:
+      message: "All tasks completed! Created new version: {{ steps.create-next-version.outputs.versionTag }}. Review file: {{ steps.create-next-version.outputs.reviewFile }}"
+      level: "info"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 11c: No tasks found (but not all complete)
   - id: "no-tasks"
     module: "system"
     action: "log"
