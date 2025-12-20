@@ -1,0 +1,71 @@
+name: "Simple Example Workflow"
+version: "1.0.0"
+description: "A simple example workflow demonstrating basic functionality"
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run example-simple"
+    params:
+      - name: "message"
+        type: "string"
+        default: "Hello, World!"
+
+steps:
+  - id: "log-start"
+    module: "system"
+    action: "log"
+    description: "Log workflow start"
+    inputs:
+      message: "Starting workflow: {{ trigger.message }}"
+      level: "info"
+    onSuccess: "wait"
+    onFailure: "error-handler"
+
+  - id: "wait"
+    module: "system"
+    action: "wait"
+    description: "Wait for 2 seconds"
+    inputs:
+      seconds: 2
+    onSuccess: "log-complete"
+    onFailure: "error-handler"
+
+  - id: "log-complete"
+    module: "system"
+    action: "log"
+    description: "Log workflow completion"
+    inputs:
+      message: "Workflow completed successfully!"
+      level: "info"
+    onSuccess: "notify"
+    onFailure: "error-handler"
+
+  - id: "notify"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify completion"
+    inputs:
+      status: "completed"
+      executionId: "{{ workflow.executionId }}"
+      duration: "{{ workflow.duration }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  - id: "complete"
+    module: "system"
+    action: "log"
+    description: "Final log"
+    inputs:
+      message: "Workflow finished"
+      level: "info"
+

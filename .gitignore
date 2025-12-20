@@ -1,0 +1,30 @@
+# kaczmarek.ai-dev - Local state and execution data
+
+# Workflow execution database (SQLite)
+.kaczmarek-ai/
+*.db
+*.db-shm
+*.db-wal
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+.cache/
+

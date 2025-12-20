@@ -15,7 +15,11 @@
     "cli",
     "local-first"
   ],
-  "author": "kaczmarek"
+  "author": "kaczmarek",
+  "dependencies": {
+    "better-sqlite3": "^9.2.2",
+    "js-yaml": "^4.1.0"
+  }
 }
 
 
