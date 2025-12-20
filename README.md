@@ -134,7 +134,7 @@ npm link  # Creates global symlink
 The project includes several built-in workflows:
 
 - **`review-self`**: Reviews the repository and generates review/progress updates
-- **`execute-features`**: Extracts next steps from review and generates implementation prompts
+- **`execute-features`**: Extracts next steps from review and launches background agent to implement features
 
 Run workflows with:
 ```bash
@@ -145,6 +145,36 @@ Example:
 ```bash
 ./kad workflow run execute-features --maxTasks 3
 ```
+
+## Background Agents
+
+The execution workflow automatically launches background agents to implement features. Agents are queued and processed automatically.
+
+**Agent Commands:**
+```bash
+# List all agent tasks
+./kad agent list
+
+# Check status of a specific task
+./kad agent status <task-id>
+
+# Start background processor (processes queued tasks automatically)
+./kad agent start
+
+# Stop background processor
+./kad agent stop
+
+# Manually process a task
+./kad agent process <task-id>
+```
+
+**How it works:**
+1. Workflow extracts next steps from review
+2. Creates implementation plan
+3. Launches background agent with prompt and tasks
+4. Agent task is queued for processing
+5. Background processor automatically processes queued tasks
+6. Tasks are marked as "ready" for Cursor Chat integration
 
 See [`SETUP.md`](SETUP.md) for detailed setup instructions.
 
