@@ -154,14 +154,18 @@ function renderWorkflows(workflows) {
   }
   
   container.innerHTML = workflows.map(wf => `
-    <div class="list-item" onclick="showWorkflowDetails('${wf.id}')">
+    <div class="list-item">
       <div class="list-item-header">
-        <div class="list-item-title">${wf.name}</div>
+        <div class="list-item-title" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">${wf.name}</div>
         <div class="list-item-meta">
           ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
           ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); runWorkflow('${wf.id}');" style="margin-left: 0.5rem;">
+            ▶ Run
+          </button>
         </div>
       </div>
+      ${wf.description ? `<div class="list-item-summary">${wf.description}</div>` : ""}
       <div class="list-item-body">
         <p><strong>ID:</strong> ${wf.id}</p>
         ${wf.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${wf.versionTag}</span></p>` : ""}
@@ -181,13 +185,116 @@ async function showWorkflowDetails(workflowId) {
     
     const modalBody = document.getElementById("modal-body");
     modalBody.innerHTML = `
-      <h2>${wf.name || workflowId}</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0;">${wf.name || workflowId}</h2>
+        <button class="btn btn-primary" onclick="runWorkflow('${workflowId}')">
+          ▶ Run Workflow
+        </button>
+      </div>
       <p><strong>Version:</strong> ${wf.version || "N/A"}</p>
       ${data.versionTag ? `<p><strong>Version Tag:</strong> <span class="version-link">${data.versionTag}</span></p>` : ""}
       <p><strong>Description:</strong> ${wf.description || "N/A"}</p>
       
-      <h3 style="margin-top: 1.5rem;">Steps (${wf.steps?.length || 0})</h3>
-      <pre><code>${JSON.stringify(wf.steps || [], null, 2)}</code></pre>
+      ${data.relatedFiles && data.relatedFiles.length > 0 ? `
+        <h3 style="margin-top: 1.5rem;">Related Files (${data.relatedFiles.length})</h3>
+        <div class="related-files-list">
+          ${data.relatedFiles.map(file => `
+            <div class="related-file-item">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="file-type-badge ${file.type}">${file.type}</span>
+                <strong>${file.label || file.name}</strong>
+                ${file.version ? `<span class="version-link" style="font-size: 0.75rem;">${file.version}</span>` : ""}
+              </div>
+              <div style="font-size: 0.875rem; color: var(--text-light); margin-top: 0.25rem;">
+                ${file.relative}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+      
+      <h3 style="margin-top: 1.5rem;">Workflow Steps (${wf.steps?.length || 0})</h3>
+      <div class="workflow-steps-view">
+        ${(wf.steps || []).map((step, index) => {
+          const stepId = step.id || `step-${index}`;
+          const module = step.module || "unknown";
+          const action = step.action || "unknown";
+          const description = step.description || "";
+          const inputs = step.inputs || {};
+          const outputs = step.outputs || [];
+          const onSuccess = step.onSuccess || {};
+          const onFailure = step.onFailure || "";
+          
+          // Determine next step
+          let nextStep = null;
+          if (typeof onSuccess === "string") {
+            nextStep = onSuccess;
+          } else if (onSuccess && onSuccess.then) {
+            nextStep = `${onSuccess.then} (if condition)`;
+          }
+          
+          return `
+            <div class="workflow-step-card">
+              <div class="workflow-step-header">
+                <div class="workflow-step-number">${index + 1}</div>
+                <div class="workflow-step-info">
+                  <h4>${stepId}</h4>
+                  <div class="workflow-step-meta">
+                    <span class="module-badge">${module}</span>
+                    <span class="action-badge">${action}</span>
+                  </div>
+                </div>
+              </div>
+              ${description ? `<p class="workflow-step-description">${description}</p>` : ""}
+              
+              ${Object.keys(inputs).length > 0 ? `
+                <div class="workflow-step-section">
+                  <strong>Inputs:</strong>
+                  <pre class="workflow-step-code">${JSON.stringify(inputs, null, 2)}</pre>
+                </div>
+              ` : ""}
+              
+              ${outputs.length > 0 ? `
+                <div class="workflow-step-section">
+                  <strong>Outputs:</strong>
+                  <ul class="workflow-step-list">
+                    ${outputs.map(o => `<li><code>${o.name}</code> (${o.type || "any"})</li>`).join("")}
+                  </ul>
+                </div>
+              ` : ""}
+              
+              <div class="workflow-step-routing">
+                ${nextStep ? `
+                  <div class="routing-item">
+                    <span class="routing-label">On Success:</span>
+                    ${typeof onSuccess === "object" && onSuccess.condition ? `
+                      <span class="routing-condition">${onSuccess.condition}</span>
+                      <span class="routing-arrow">→</span>
+                      <span class="routing-target">${onSuccess.then}</span>
+                      ${onSuccess.else ? `<span class="routing-else">else → ${onSuccess.else}</span>` : ""}
+                    ` : `
+                      <span class="routing-arrow">→</span>
+                      <span class="routing-target">${nextStep}</span>
+                    `}
+                  </div>
+                ` : ""}
+                ${onFailure ? `
+                  <div class="routing-item routing-failure">
+                    <span class="routing-label">On Failure:</span>
+                    <span class="routing-arrow">→</span>
+                    <span class="routing-target">${onFailure}</span>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+      
+      <details style="margin-top: 1.5rem;">
+        <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">Raw Workflow JSON</summary>
+        <pre><code>${JSON.stringify(wf.steps || [], null, 2)}</code></pre>
+      </details>
       
       <h3 style="margin-top: 1.5rem;">Executions (${data.executions?.length || 0})</h3>
       ${data.executions?.length > 0 ? `
@@ -236,22 +343,35 @@ function renderAgents(agents, containerId) {
     return;
   }
   
-  container.innerHTML = agents.map(agent => `
-    <div class="list-item" onclick="showAgentDetails('${agent.id}')">
+  container.innerHTML = agents.map(agent => {
+    const agentId = agent.id || "";
+    const executionId = agent.execution?.executionId || agent.executionId || "";
+    const createdAt = agent.createdAt || agent.startedAt || new Date().toISOString();
+    
+    return `
+    <div class="list-item" onclick="showAgentDetails('${agentId}')">
       <div class="list-item-header">
-        <div class="list-item-title">${agent.id.substring(0, 8)}...</div>
-        <span class="status-badge ${agent.status}">${agent.status}</span>
+        <div class="list-item-title">${agentId ? agentId.substring(0, 8) + "..." : "Unknown"}</div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="status-badge ${agent.status || "unknown"}">${agent.status || "unknown"}</span>
+          ${(agent.status === "ready" || agent.status === "partial") ? `
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); completeAgentTask('${agentId}');" title="Mark task as completed">
+              ✓ Complete
+            </button>
+          ` : ""}
+        </div>
       </div>
       <div class="list-item-body">
-        <p><strong>Type:</strong> ${agent.type}</p>
+        <p><strong>Type:</strong> ${agent.type || "unknown"}</p>
         <p><strong>Tasks:</strong> ${agent.tasks?.length || 0}</p>
-        <p><strong>Created:</strong> ${new Date(agent.createdAt).toLocaleString()}</p>
-        ${agent.executionId ? `<p><strong>Execution:</strong> <a href="#" onclick="event.stopPropagation(); showExecutionDetails('${agent.executionId}'); return false;">${agent.executionId.substring(0, 8)}...</a></p>` : ""}
+        <p><strong>Created:</strong> ${new Date(createdAt).toLocaleString()}</p>
+        ${executionId ? `<p><strong>Execution:</strong> <a href="#" onclick="event.stopPropagation(); switchView('executions'); showExecutionDetails('${executionId}'); return false;">${executionId.substring(0, 8)}...</a></p>` : ""}
         ${agent.workflow ? `<p><strong>Workflow:</strong> ${agent.workflow.name}</p>` : ""}
-        ${agent.versionTag ? `<p><strong>Version:</strong> ${agent.versionTag}</p>` : ""}
+        ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 /**
@@ -297,6 +417,23 @@ async function showAgentDetails(agentId) {
         <h3 style="margin-top: 1.5rem;">Execution Results</h3>
         <pre><code>${JSON.stringify(agent.executionResults, null, 2)}</code></pre>
       ` : ""}
+      
+      ${agent.status === "ready" || agent.status === "partial" ? `
+        <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg); border-radius: 0.5rem; border: 1px solid var(--border);">
+          <h4 style="margin-top: 0;">Complete Task</h4>
+          <p style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 1rem;">
+            Mark this task as completed. This will:
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.875rem;">
+              <li>Mark the task as completed in the queue</li>
+              <li>Update the progress file with completion entry</li>
+              <li>Mark related tasks as [x] in the review file</li>
+            </ul>
+          </p>
+          <button class="btn btn-primary" onclick="completeAgentTask('${agent.id}')">
+            ✓ Mark as Completed
+          </button>
+        </div>
+      ` : ""}
     `;
     
     document.getElementById("modal").classList.add("active");
@@ -304,6 +441,83 @@ async function showAgentDetails(agentId) {
     console.error("Failed to load agent details:", error);
   }
 }
+
+/**
+ * Complete an agent task
+ */
+async function completeAgentTask(agentId) {
+  if (!confirm(`Are you sure you want to mark task ${agentId.substring(0, 8)}... as completed?\n\nThis will update the progress and review files.`)) {
+    return;
+  }
+
+  try {
+    // Show loading state
+    const loadingMsg = document.createElement("div");
+    loadingMsg.id = "agent-completing-msg";
+    loadingMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: var(--primary); color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    loadingMsg.textContent = `Completing task: ${agentId.substring(0, 8)}...`;
+    document.body.appendChild(loadingMsg);
+    
+    const response = await fetch(`/api/agents/${agentId}/complete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+    
+    const result = await response.json();
+    
+    // Remove loading message
+    document.body.removeChild(loadingMsg);
+    
+    if (result.success) {
+      // Show success message
+      const successMsg = document.createElement("div");
+      successMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+      successMsg.textContent = `✓ Task completed! Progress and review files updated.`;
+      document.body.appendChild(successMsg);
+      
+      // Auto-remove after 3 seconds
+      setTimeout(() => {
+        if (document.body.contains(successMsg)) {
+          document.body.removeChild(successMsg);
+        }
+      }, 3000);
+      
+      // Close modal and refresh
+      closeModal();
+      
+      // Refresh agents list
+      setTimeout(() => {
+        loadAgents();
+        if (currentView === "dashboard") {
+          loadDashboard();
+        }
+      }, 500);
+    } else {
+      throw new Error(result.error || "Failed to complete task");
+    }
+  } catch (error) {
+    // Show error message
+    const errorMsg = document.createElement("div");
+    errorMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    errorMsg.textContent = `✗ Error: ${error.message}`;
+    document.body.appendChild(errorMsg);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(errorMsg)) {
+        document.body.removeChild(errorMsg);
+      }
+    }, 5000);
+    
+    console.error("Failed to complete agent task:", error);
+  }
+}
+
+// Expose completeAgentTask globally
+window.completeAgentTask = completeAgentTask;
 
 /**
  * Load executions
@@ -487,4 +701,99 @@ document.getElementById("modal")?.addEventListener("click", (e) => {
 
 // Expose switchView globally for onclick handlers
 window.switchView = switchView;
+
+/**
+ * Run a workflow
+ */
+async function runWorkflow(workflowId, params = {}) {
+  try {
+    // Show confirmation dialog for parameters if needed
+    let workflowParams = params;
+    
+    if (Object.keys(params).length === 0) {
+      // Try to get workflow details to see if it needs parameters
+      try {
+        const workflowData = await apiCall(`/api/workflows/${workflowId}`);
+        // For now, just run with empty params - can enhance later with parameter input
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    // Show loading state
+    const loadingMsg = document.createElement("div");
+    loadingMsg.id = "workflow-running-msg";
+    loadingMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: var(--primary); color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    loadingMsg.textContent = `Running workflow: ${workflowId}...`;
+    document.body.appendChild(loadingMsg);
+    
+    const response = await fetch(`/api/workflows/${workflowId}/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(workflowParams)
+    });
+    
+    const result = await response.json();
+    
+    // Remove loading message
+    document.body.removeChild(loadingMsg);
+    
+    if (result.success) {
+      // Show success message
+      const successMsg = document.createElement("div");
+      successMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+      successMsg.textContent = `✓ Workflow started! Execution ID: ${result.executionId.substring(0, 8)}...`;
+      document.body.appendChild(successMsg);
+      
+      // Auto-remove after 3 seconds
+      setTimeout(() => {
+        if (document.body.contains(successMsg)) {
+          document.body.removeChild(successMsg);
+        }
+      }, 3000);
+      
+      // Refresh executions and dashboard
+      setTimeout(() => {
+        if (currentView === "dashboard") {
+          loadDashboard();
+        } else if (currentView === "executions") {
+          loadExecutions();
+        }
+      }, 1000);
+      
+      // Close modal if open
+      closeModal();
+      
+      // Optionally switch to executions view
+      if (currentView !== "executions") {
+        setTimeout(() => {
+          switchView("executions");
+          showExecutionDetails(result.executionId);
+        }, 500);
+      }
+    } else {
+      throw new Error(result.error || "Failed to run workflow");
+    }
+  } catch (error) {
+    // Show error message
+    const errorMsg = document.createElement("div");
+    errorMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    errorMsg.textContent = `✗ Error: ${error.message}`;
+    document.body.appendChild(errorMsg);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(errorMsg)) {
+        document.body.removeChild(errorMsg);
+      }
+    }, 5000);
+    
+    console.error("Failed to run workflow:", error);
+  }
+}
+
+// Expose runWorkflow globally
+window.runWorkflow = runWorkflow;
 
