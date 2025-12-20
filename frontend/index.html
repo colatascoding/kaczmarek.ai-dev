@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kaczmarek.ai-dev Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <h1>kaczmarek.ai-dev</h1>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="workflows">Workflows</button>
+        <button class="nav-btn" data-view="agents">Agents</button>
+        <button class="nav-btn" data-view="executions">Executions</button>
+        <button class="nav-btn" data-view="versions">Versions</button>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="view active">
+        <h2>Dashboard</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Workflows</h3>
+            <p class="stat-value" id="workflow-count">-</p>
+          </div>
+          <div class="stat-card">
+            <h3>Active Agents</h3>
+            <p class="stat-value" id="agent-count">-</p>
+          </div>
+          <div class="stat-card">
+            <h3>Executions</h3>
+            <p class="stat-value" id="execution-count">-</p>
+          </div>
+          <div class="stat-card">
+            <h3>Versions</h3>
+            <p class="stat-value" id="version-count">-</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <h3>Quick Actions</h3>
+          </div>
+          <div class="actions-grid">
+            <button class="action-btn" onclick="switchView('workflows')">
+              <span class="action-icon">📋</span>
+              <span class="action-label">View Workflows</span>
+            </button>
+            <button class="action-btn" onclick="switchView('agents')">
+              <span class="action-icon">🤖</span>
+              <span class="action-label">Monitor Agents</span>
+            </button>
+            <button class="action-btn" onclick="switchView('executions')">
+              <span class="action-icon">⚡</span>
+              <span class="action-label">Execution History</span>
+            </button>
+            <button class="action-btn" onclick="switchView('versions')">
+              <span class="action-icon">📚</span>
+              <span class="action-label">View Versions</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Recent Executions</h3>
+          <div id="recent-executions" class="list"></div>
+        </div>
+
+        <div class="section">
+          <h3>Active Agent Tasks</h3>
+          <div id="active-agents" class="list"></div>
+        </div>
+
+        <div class="section">
+          <h3>Latest Version Summary</h3>
+          <div id="latest-version" class="version-summary"></div>
+        </div>
+      </div>
+
+      <!-- Workflows View -->
+      <div id="workflows-view" class="view">
+        <div class="view-header">
+          <h2>Workflows</h2>
+          <button class="btn btn-primary" onclick="loadWorkflows()">Refresh</button>
+        </div>
+        <div id="workflows-list" class="list"></div>
+      </div>
+
+      <!-- Agents View -->
+      <div id="agents-view" class="view">
+        <div class="view-header">
+          <h2>Agent Tasks</h2>
+          <button class="btn btn-primary" onclick="loadAgents()">Refresh</button>
+        </div>
+        <div id="agents-list" class="list"></div>
+      </div>
+
+      <!-- Executions View -->
+      <div id="executions-view" class="view">
+        <div class="view-header">
+          <h2>Execution History</h2>
+          <button class="btn btn-primary" onclick="loadExecutions()">Refresh</button>
+        </div>
+        <div id="executions-list" class="list"></div>
+      </div>
+
+      <!-- Versions View -->
+      <div id="versions-view" class="view">
+        <div class="view-header">
+          <h2>Versions</h2>
+          <button class="btn btn-primary" onclick="loadVersions()">Refresh</button>
+        </div>
+        <div id="versions-list" class="list"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal for details -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+

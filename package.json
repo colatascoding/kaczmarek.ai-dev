@@ -7,7 +7,9 @@
     "kat": "./bin/kad.js"
   },
   "scripts": {
-    "test": "node -e \"console.log('No tests defined yet')\""
+    "test": "node -e \"console.log('No tests defined yet')\"",
+    "api": "node bin/kad.js api start",
+    "dev": "node bin/kad.js api start 3000"
   },
   "keywords": [
     "ai",
