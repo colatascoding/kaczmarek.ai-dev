@@ -24,6 +24,41 @@ function formatDateForDisplay(dateValue) {
   }
 }
 
+/**
+ * Show a notification message
+ */
+function showNotification(message, type = "info") {
+  const colors = {
+    info: "#3b82f6",
+    success: "#10b981",
+    error: "#ef4444",
+    warning: "#f59e0b"
+  };
+  
+  const icons = {
+    info: "ℹ️",
+    success: "✓",
+    error: "✗",
+    warning: "⚠️"
+  };
+  
+  const notification = document.createElement("div");
+  notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: ${colors[type] || colors.info}; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000; max-width: 400px;`;
+  notification.textContent = `${icons[type] || icons.info} ${message}`;
+  document.body.appendChild(notification);
+  
+  // Auto-remove after appropriate duration
+  const duration = type === "error" ? 5000 : 3000;
+  setTimeout(() => {
+    if (document.body.contains(notification)) {
+      document.body.removeChild(notification);
+    }
+  }, duration);
+}
+
+// Expose showNotification globally
+window.showNotification = showNotification;
+
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
@@ -1065,13 +1100,30 @@ async function showExecutionDetails(executionId) {
   try {
     const data = await apiCall(`/api/executions/${executionId}`);
     const exec = data.execution;
+    
+    // Debug: Log follow-up suggestions
+    console.log("Execution details:", {
+      executionId: exec.executionId,
+      status: exec.status,
+      outcome: exec.outcome,
+      followUpSuggestions: exec.followUpSuggestions,
+      hasFollowUps: exec.followUpSuggestions && Array.isArray(exec.followUpSuggestions) && exec.followUpSuggestions.length > 0
+    });
+    
     const modalBody = document.getElementById("modal-body");
     modalBody.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0;">Execution: ${exec.executionId}</h2>
-        <button class="btn btn-primary" onclick="copyExecutionSummary('${executionId}')" title="Copy execution summary to clipboard for debugging">
-          📋 Copy Summary
-        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          ${!exec.outcome && exec.status === "completed" ? `
+            <button class="btn btn-secondary" onclick="recalculateOutcome('${executionId}')" title="Recalculate outcome and follow-up suggestions">
+              🔄 Recalculate Outcome
+            </button>
+          ` : ""}
+          <button class="btn btn-primary" onclick="copyExecutionSummary('${executionId}')" title="Copy execution summary to clipboard for debugging">
+            📋 Copy Summary
+          </button>
+        </div>
       </div>
       <p><strong>Workflow:</strong> ${data.workflow ? `<a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${data.workflow.id}'); return false;">${data.workflow.name}</a>` : exec.workflowId || "Unknown"}</p>
       ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
@@ -1081,7 +1133,7 @@ async function showExecutionDetails(executionId) {
       <p><strong>Started:</strong> ${formatDateForDisplay(exec.startedAt)}</p>
       ${exec.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(exec.completedAt)}</p>` : ""}
       
-      ${exec.followUpSuggestions && exec.followUpSuggestions.length > 0 ? `
+      ${exec.followUpSuggestions && Array.isArray(exec.followUpSuggestions) && exec.followUpSuggestions.length > 0 ? `
         <div style="margin-top: 1.5rem; padding: 1rem; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 0.5rem;">
           <h3 style="margin-top: 0; color: #1e40af;">Suggested Follow-Up Actions</h3>
           <p style="font-size: 0.875rem; color: #1e3a8a; margin-bottom: 1rem;">
@@ -1208,6 +1260,29 @@ async function showExecutionDetails(executionId) {
 
 // Expose showExecutionDetails globally
 window.showExecutionDetails = showExecutionDetails;
+
+/**
+ * Recalculate outcome for an execution
+ */
+async function recalculateOutcome(executionId) {
+  try {
+    showNotification("Recalculating outcome...", "info");
+    
+    // Reload execution details - the API will automatically recalculate if outcome is missing
+    const data = await apiCall(`/api/executions/${executionId}`);
+    
+    // Reload the execution details view
+    await showExecutionDetails(executionId);
+    
+    showNotification("Outcome recalculated!", "success");
+  } catch (error) {
+    console.error("Failed to recalculate outcome:", error);
+    showNotification(`Failed to recalculate: ${error.message}`, "error");
+  }
+}
+
+// Expose recalculateOutcome globally
+window.recalculateOutcome = recalculateOutcome;
 
 /**
  * Run a follow-up workflow

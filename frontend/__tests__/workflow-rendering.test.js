@@ -2,6 +2,8 @@
  * Unit tests for workflow rendering functionality
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 // Mock DOM environment
 document.body.innerHTML = `
   <div id="modal">
@@ -14,7 +16,7 @@ document.body.innerHTML = `
 `;
 
 // Mock the API call function
-global.apiCall = jest.fn();
+global.apiCall = vi.fn();
 
 // Mock workflow data
 const mockWorkflowData = {
@@ -64,10 +66,10 @@ describe("Workflow Rendering", () => {
     // Clear DOM
     document.getElementById("modal-body").innerHTML = "";
     document.getElementById("modal").classList.remove("active");
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  test("showWorkflowDetails renders workflow header", async () => {
+  it("showWorkflowDetails renders workflow header", async () => {
     global.apiCall.mockResolvedValue(mockWorkflowData);
     
     // Import the function (in a real test, you'd import from the module)
@@ -93,7 +95,7 @@ describe("Workflow Rendering", () => {
     expect(modalBody.innerHTML).toContain("A test workflow");
   });
 
-  test("showWorkflowDetails renders workflow steps", async () => {
+  it("showWorkflowDetails renders workflow steps", async () => {
     global.apiCall.mockResolvedValue(mockWorkflowData);
     
     const wf = mockWorkflowData.workflow;
@@ -142,7 +144,7 @@ describe("Workflow Rendering", () => {
     expect(firstStep.textContent).toContain("log");
   });
 
-  test("showWorkflowDetails handles empty steps array", async () => {
+  it("showWorkflowDetails handles empty steps array", async () => {
     const emptyWorkflowData = {
       ...mockWorkflowData,
       workflow: {
@@ -169,7 +171,7 @@ describe("Workflow Rendering", () => {
     expect(modalBody.querySelector(".workflow-steps-view")).toBeNull();
   });
 
-  test("showWorkflowDetails renders step routing information", async () => {
+  it("showWorkflowDetails renders step routing information", async () => {
     const wf = mockWorkflowData.workflow;
     const modalBody = document.getElementById("modal-body");
     
@@ -194,7 +196,7 @@ describe("Workflow Rendering", () => {
     expect(successDisplay).toContain("condition");
   });
 
-  test("showWorkflowDetails renders step inputs and outputs", async () => {
+  it("showWorkflowDetails renders step inputs and outputs", async () => {
     const wf = mockWorkflowData.workflow;
     const step = wf.steps[0]; // step1 with inputs and outputs
     
@@ -233,7 +235,7 @@ describe("Workflow Rendering", () => {
     expect(outputsHtml).toContain("string");
   });
 
-  test("modal opens when showWorkflowDetails is called", async () => {
+  it("modal opens when showWorkflowDetails is called", async () => {
     global.apiCall.mockResolvedValue(mockWorkflowData);
     
     const modal = document.getElementById("modal");
@@ -247,7 +249,7 @@ describe("Workflow Rendering", () => {
     expect(modalBody.innerHTML).toContain("Test Workflow");
   });
 
-  test("workflow steps container is visible after rendering", async () => {
+  it("workflow steps container is visible after rendering", async () => {
     const wf = mockWorkflowData.workflow;
     const modalBody = document.getElementById("modal-body");
     

@@ -3,6 +3,8 @@
  * Tests the actual DOM rendering of workflow details
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 // Setup DOM
 document.body.innerHTML = `
   <div id="modal">
@@ -14,7 +16,7 @@ document.body.innerHTML = `
 `;
 
 // Mock fetch/API
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Mock workflow data
 const mockWorkflowResponse = {
@@ -71,10 +73,10 @@ describe("Workflow View Integration", () => {
     modal = document.getElementById("modal");
     modalBody.innerHTML = "";
     modal.classList.remove("active");
-    global.fetch.mockClear();
+    vi.clearAllMocks();
   });
 
-  test("workflow steps container is created and visible", () => {
+  it("workflow steps container is created and visible", () => {
     const wf = mockWorkflowResponse.workflow;
     
     // Simulate the rendering logic from showWorkflowDetails
@@ -115,7 +117,7 @@ describe("Workflow View Integration", () => {
     expect(stepsContainer.style.display).not.toBe("none");
   });
 
-  test("workflow steps are rendered with correct structure", () => {
+  it("workflow steps are rendered with correct structure", () => {
     const wf = mockWorkflowResponse.workflow;
     
     const content = `
@@ -172,7 +174,7 @@ describe("Workflow View Integration", () => {
     expect(actionBadge.textContent).toBe("log");
   });
 
-  test("workflow steps container is visible after fallback rendering", () => {
+  it("workflow steps container is visible after fallback rendering", () => {
     const wf = mockWorkflowResponse.workflow;
     
     // Simulate the fallback rendering logic
@@ -223,7 +225,7 @@ describe("Workflow View Integration", () => {
     expect(stepsContainer.style.visibility).toBe("visible");
   });
 
-  test("modal opens and shows workflow content", () => {
+  it("modal opens and shows workflow content", () => {
     const wf = mockWorkflowResponse.workflow;
     
     modalBody.innerHTML = `
