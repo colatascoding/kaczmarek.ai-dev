@@ -1123,8 +1123,25 @@ async function showExecutionDetails(executionId) {
           <button class="btn btn-primary" onclick="copyExecutionSummary('${executionId}')" title="Copy execution summary to clipboard for debugging">
             📋 Copy Summary
           </button>
+          ${exec.summary ? `
+            <button class="btn btn-secondary" onclick="showExecutionSummary('${executionId}')" title="View execution summary">
+              📄 View Summary
+            </button>
+          ` : ""}
         </div>
       </div>
+      
+      ${exec.summary ? `
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h3 style="margin: 0; font-size: 1rem;">Execution Summary</h3>
+            <button class="btn btn-sm btn-secondary" onclick="showExecutionSummary('${executionId}')" title="View full summary">
+              View Full
+            </button>
+          </div>
+          <pre style="margin: 0; padding: 0.75rem; background: white; border-radius: 0.375rem; font-size: 0.8125rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">${exec.summary.substring(0, 500)}${exec.summary.length > 500 ? '...' : ''}</pre>
+        </div>
+      ` : ""}
       <p><strong>Workflow:</strong> ${data.workflow ? `<a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${data.workflow.id}'); return false;">${data.workflow.name}</a>` : exec.workflowId || "Unknown"}</p>
       ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
       ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
@@ -1266,15 +1283,31 @@ window.showExecutionDetails = showExecutionDetails;
  */
 async function recalculateOutcome(executionId) {
   try {
-    showNotification("Recalculating outcome...", "info");
+    showNotification("Recalculating outcome and follow-up suggestions...", "info");
     
-    // Reload execution details - the API will automatically recalculate if outcome is missing
-    const data = await apiCall(`/api/executions/${executionId}`);
+    // Force recalculation by calling API with a special parameter
+    // First, fetch current execution to get workflow info
+    const currentData = await apiCall(`/api/executions/${executionId}`);
+    
+    // Force recalculation by clearing outcome and follow-ups, then reloading
+    // The API will automatically recalculate when these are missing
+    // We do this by making a request that triggers the recalculation logic
+    
+    // Reload execution details - the API will automatically recalculate if outcome/suggestions are missing
+    const data = await apiCall(`/api/executions/${executionId}?_recalculate=true`);
+    
+    // Small delay to ensure database is updated
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Reload the execution details view
     await showExecutionDetails(executionId);
     
-    showNotification("Outcome recalculated!", "success");
+    const exec = data.execution;
+    if (exec.followUpSuggestions && exec.followUpSuggestions.length > 0) {
+      showNotification(`Outcome recalculated! Found ${exec.followUpSuggestions.length} follow-up suggestion(s).`, "success");
+    } else {
+      showNotification("Outcome recalculated, but no follow-up suggestions found.", "info");
+    }
   } catch (error) {
     console.error("Failed to recalculate outcome:", error);
     showNotification(`Failed to recalculate: ${error.message}`, "error");
@@ -1334,133 +1367,135 @@ window.runFollowUpWorkflow = runFollowUpWorkflow;
  */
 async function copyExecutionSummary(executionId) {
   try {
-    const data = window.currentExecutionData;
-    if (!data) {
-      // Reload if not available
-      const response = await fetch(`/api/executions/${executionId}`);
-      data = await response.json();
-    }
-    
+    // Always fetch fresh data to get the stored summary
+    const data = await apiCall(`/api/executions/${executionId}`);
     const exec = data.execution;
-    const workflow = data.workflow;
-    const steps = data.steps || [];
-    const agents = data.agents || [];
     
-    // Calculate overall return code from steps
-    const completedSteps = steps.filter(s => s.status === "completed");
-    const failedSteps = steps.filter(s => s.status === "failed");
-    const totalSteps = steps.length;
-    const successCount = completedSteps.length;
-    const failureCount = failedSteps.length;
-    const overallReturnCode = failureCount === 0 && totalSteps > 0 ? 0 : failureCount > 0 ? failureCount : null;
+    // Use stored summary if available, otherwise generate on-the-fly
+    let summary = exec.summary;
     
-    // Format execution summary for debugging
-    let summary = `# Execution Summary: ${exec.executionId}\n\n`;
-    summary += `## Basic Information\n`;
-    summary += `- **Execution ID:** ${exec.executionId}\n`;
-    summary += `- **Status:** ${exec.status} ${exec.status === "completed" ? "✓" : exec.status === "failed" ? "✗" : ""}\n`;
-    summary += `- **Workflow:** ${workflow ? `${workflow.name} (${workflow.id})` : exec.workflowId || "Unknown"}\n`;
-    summary += `- **Version Tag:** ${exec.versionTag || data.workflow?.versionTag || "N/A"}\n`;
-    summary += `- **Steps Summary:** ${successCount} succeeded, ${failureCount} failed, ${totalSteps} total\n`;
-    summary += `- **Overall Return Code:** ${overallReturnCode !== null ? `${overallReturnCode} ${overallReturnCode === 0 ? "✓ Success" : "✗ Failed"}` : "N/A"}\n`;
-    
-    // Safely format dates
-    const formatDate = (dateValue) => {
-      if (!dateValue) return "N/A";
-      try {
-        const date = new Date(dateValue);
-        if (isNaN(date.getTime())) return "Invalid date";
-        return date.toISOString();
-      } catch (e) {
-        return String(dateValue);
-      }
-    };
-    
-    // Check if execution is still running
-    const isRunning = exec.status === "running" || exec.status === "pending" || !exec.completedAt;
-    
-    summary += `- **Started:** ${formatDate(exec.startedAt)}\n`;
-    if (exec.completedAt && !isNaN(new Date(exec.completedAt).getTime())) {
-      summary += `- **Completed:** ${formatDate(exec.completedAt)}\n`;
-      try {
-        const startDate = new Date(exec.startedAt);
-        const endDate = new Date(exec.completedAt);
-        if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-          const duration = endDate - startDate;
-          summary += `- **Duration:** ${Math.round(duration / 1000)}s\n`;
+    if (!summary) {
+      // Fallback to generating summary (for old executions without stored summaries)
+      const workflow = data.workflow;
+      const steps = data.steps || [];
+      const agents = data.agents || [];
+      
+      // Calculate overall return code from steps
+      const completedSteps = steps.filter(s => s.status === "completed");
+      const failedSteps = steps.filter(s => s.status === "failed");
+      const totalSteps = steps.length;
+      const successCount = completedSteps.length;
+      const failureCount = failedSteps.length;
+      const overallReturnCode = failureCount === 0 && totalSteps > 0 ? 0 : failureCount > 0 ? failureCount : null;
+      
+      // Format execution summary for debugging
+      summary = `# Execution Summary: ${exec.executionId}\n\n`;
+      summary += `## Basic Information\n`;
+      summary += `- **Execution ID:** ${exec.executionId}\n`;
+      summary += `- **Status:** ${exec.status} ${exec.status === "completed" ? "✓" : exec.status === "failed" ? "✗" : ""}\n`;
+      summary += `- **Workflow:** ${workflow ? `${workflow.name} (${workflow.id})` : exec.workflowId || "Unknown"}\n`;
+      summary += `- **Version Tag:** ${exec.versionTag || data.workflow?.versionTag || "N/A"}\n`;
+      summary += `- **Steps Summary:** ${successCount} succeeded, ${failureCount} failed, ${totalSteps} total\n`;
+      summary += `- **Overall Return Code:** ${overallReturnCode !== null ? `${overallReturnCode} ${overallReturnCode === 0 ? "✓ Success" : "✗ Failed"}` : "N/A"}\n`;
+      
+      // Safely format dates
+      const formatDate = (dateValue) => {
+        if (!dateValue) return "N/A";
+        try {
+          const date = new Date(dateValue);
+          if (isNaN(date.getTime())) return "Invalid date";
+          return date.toISOString();
+        } catch (e) {
+          return String(dateValue);
         }
-      } catch (e) {
-        // Skip duration if dates are invalid
-      }
-    } else {
-      summary += `- **Completed:** ${isRunning ? "Still running" : "N/A"}\n`;
-    }
-    
-    if (exec.error) {
-      summary += `\n## Error\n\`\`\`\n${exec.error}\n\`\`\`\n`;
-    }
-    
-    if (agents.length > 0) {
-      summary += `\n## Agents (${agents.length})\n\n`;
-      agents.forEach((agent, index) => {
-        summary += `### Agent ${index + 1}: ${agent.id.substring(0, 8)}...\n`;
-        summary += `- **Status:** ${agent.status}\n`;
-        summary += `- **Type:** ${agent.type}\n`;
-        if (agent.createdAt) {
-          summary += `- **Created:** ${formatDate(agent.createdAt)}\n`;
-        }
-        if (agent.readyAt) {
-          summary += `- **Ready:** ${formatDate(agent.readyAt)}\n`;
-        }
-        if (agent.completedAt) {
-          summary += `- **Completed:** ${formatDate(agent.completedAt)}\n`;
-        }
-        summary += `\n`;
-      });
-    }
-    
-    if (steps.length > 0) {
-      summary += `\n## Step Executions (${steps.length})\n\n`;
-      steps.forEach((step, index) => {
-        summary += `### Step ${index + 1}: ${step.step_id || step.id || "unknown"}\n`;
-        summary += `- **Module:** ${step.module || "N/A"}\n`;
-        summary += `- **Action:** ${step.action || "N/A"}\n`;
-        summary += `- **Status:** ${step.status || "unknown"}\n`;
-        summary += `- **Return Code:** ${step.return_code !== undefined && step.return_code !== null ? step.return_code : (step.status === "completed" ? "0" : (step.status === "failed" ? "1" : "N/A"))} ${step.return_code === 0 ? "✓" : step.return_code > 0 ? "✗" : ""}\n`;
-        if (step.started_at) {
-          summary += `- **Started:** ${formatDate(step.started_at)}\n`;
-        }
-        if (step.completed_at) {
-          summary += `- **Completed:** ${formatDate(step.completed_at)}\n`;
-        }
-        if (step.duration) {
-          summary += `- **Duration:** ${step.duration}ms\n`;
-        }
-        if (step.inputs) {
-          try {
-            const inputs = typeof step.inputs === "string" ? JSON.parse(step.inputs) : step.inputs;
-            summary += `- **Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n`;
-          } catch (e) {
-            summary += `- **Inputs:** ${step.inputs}\n`;
+      };
+      
+      // Check if execution is still running
+      const isRunning = exec.status === "running" || exec.status === "pending" || !exec.completedAt;
+      
+      summary += `- **Started:** ${formatDate(exec.startedAt)}\n`;
+      if (exec.completedAt && !isNaN(new Date(exec.completedAt).getTime())) {
+        summary += `- **Completed:** ${formatDate(exec.completedAt)}\n`;
+        try {
+          const startDate = new Date(exec.startedAt);
+          const endDate = new Date(exec.completedAt);
+          if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+            const duration = endDate - startDate;
+            summary += `- **Duration:** ${Math.round(duration / 1000)}s\n`;
           }
+        } catch (e) {
+          // Skip duration if dates are invalid
         }
-        if (step.outputs) {
-          try {
-            const outputs = typeof step.outputs === "string" ? JSON.parse(step.outputs) : step.outputs;
-            summary += `- **Outputs:**\n\`\`\`json\n${JSON.stringify(outputs, null, 2)}\n\`\`\`\n`;
-          } catch (e) {
-            summary += `- **Outputs:** ${step.outputs}\n`;
+      } else {
+        summary += `- **Completed:** ${isRunning ? "Still running" : "N/A"}\n`;
+      }
+      
+      if (exec.error) {
+        summary += `\n## Error\n\`\`\`\n${exec.error}\n\`\`\`\n`;
+      }
+      
+      if (agents.length > 0) {
+        summary += `\n## Agents (${agents.length})\n\n`;
+        agents.forEach((agent, index) => {
+          summary += `### Agent ${index + 1}: ${agent.id.substring(0, 8)}...\n`;
+          summary += `- **Status:** ${agent.status}\n`;
+          summary += `- **Type:** ${agent.type}\n`;
+          if (agent.createdAt) {
+            summary += `- **Created:** ${formatDate(agent.createdAt)}\n`;
           }
-        }
-        if (step.error) {
-          summary += `- **Error:**\n\`\`\`\n${step.error}\n\`\`\`\n`;
-        }
-        summary += `\n`;
-      });
+          if (agent.readyAt) {
+            summary += `- **Ready:** ${formatDate(agent.readyAt)}\n`;
+          }
+          if (agent.completedAt) {
+            summary += `- **Completed:** ${formatDate(agent.completedAt)}\n`;
+          }
+          summary += `\n`;
+        });
+      }
+      
+      if (steps.length > 0) {
+        summary += `\n## Step Executions (${steps.length})\n\n`;
+        steps.forEach((step, index) => {
+          summary += `### Step ${index + 1}: ${step.step_id || step.id || "unknown"}\n`;
+          summary += `- **Module:** ${step.module || "N/A"}\n`;
+          summary += `- **Action:** ${step.action || "N/A"}\n`;
+          summary += `- **Status:** ${step.status || "unknown"}\n`;
+          summary += `- **Return Code:** ${step.return_code !== undefined && step.return_code !== null ? step.return_code : (step.status === "completed" ? "0" : (step.status === "failed" ? "1" : "N/A"))} ${step.return_code === 0 ? "✓" : step.return_code > 0 ? "✗" : ""}\n`;
+          if (step.started_at) {
+            summary += `- **Started:** ${formatDate(step.started_at)}\n`;
+          }
+          if (step.completed_at) {
+            summary += `- **Completed:** ${formatDate(step.completed_at)}\n`;
+          }
+          if (step.duration) {
+            summary += `- **Duration:** ${step.duration}ms\n`;
+          }
+          if (step.inputs) {
+            try {
+              const inputs = typeof step.inputs === "string" ? JSON.parse(step.inputs) : step.inputs;
+              summary += `- **Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n`;
+            } catch (e) {
+              summary += `- **Inputs:** ${step.inputs}\n`;
+            }
+          }
+          if (step.outputs) {
+            try {
+              const outputs = typeof step.outputs === "string" ? JSON.parse(step.outputs) : step.outputs;
+              summary += `- **Outputs:**\n\`\`\`json\n${JSON.stringify(outputs, null, 2)}\n\`\`\`\n`;
+            } catch (e) {
+              summary += `- **Outputs:** ${step.outputs}\n`;
+            }
+          }
+          if (step.error) {
+            summary += `- **Error:**\n\`\`\`\n${step.error}\n\`\`\`\n`;
+          }
+          summary += `\n`;
+        });
+      }
+      
+      summary += `\n---\n`;
+      summary += `*Generated from kaczmarek.ai-dev execution ${exec.executionId}*\n`;
     }
-    
-    summary += `\n---\n`;
-    summary += `*Generated from kaczmarek.ai-dev execution ${exec.executionId}*\n`;
     
     // Copy to clipboard
     await navigator.clipboard.writeText(summary);
