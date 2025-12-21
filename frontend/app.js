@@ -520,11 +520,12 @@ function renderAgents(agents, containerId) {
     const agentId = agent.id || "";
     const executionId = agent.execution?.executionId || agent.executionId || "";
     const createdAt = agent.createdAt || agent.startedAt || new Date().toISOString();
+    const agentName = agent.name || (agentId ? agentId.substring(0, 8) + "..." : "Unknown Agent");
     
     return `
     <div class="list-item" onclick="showAgentDetails('${agentId}')">
       <div class="list-item-header">
-        <div class="list-item-title">${agentId ? agentId.substring(0, 8) + "..." : "Unknown"}</div>
+        <div class="list-item-title">${agentName}</div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="status-badge ${agent.status || "unknown"}">${agent.status || "unknown"}</span>
           ${(agent.status === "ready" || agent.status === "partial") ? `
@@ -535,12 +536,32 @@ function renderAgents(agents, containerId) {
         </div>
       </div>
       <div class="list-item-body">
-        <p><strong>Type:</strong> ${agent.type || "unknown"}</p>
-        <p><strong>Tasks:</strong> ${agent.tasks?.length || 0}</p>
-        <p><strong>Created:</strong> ${formatDateForDisplay(createdAt)}</p>
-        ${executionId ? `<p><strong>Execution:</strong> <a href="#" onclick="event.stopPropagation(); switchView('executions'); showExecutionDetails('${executionId}'); return false;">${executionId.substring(0, 8)}...</a></p>` : ""}
-        ${agent.workflow ? `<p><strong>Workflow:</strong> ${agent.workflow.name}</p>` : ""}
-        ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
+        <div style="display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.875rem;">
+          ${agent.workflow ? `
+            <div>
+              <strong>Workflow:</strong> 
+              <a href="#" onclick="event.stopPropagation(); closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
+                ${agent.workflow.name}
+              </a>
+            </div>
+          ` : ""}
+          ${executionId ? `
+            <div>
+              <strong>Execution:</strong> 
+              <a href="#" onclick="event.stopPropagation(); closeModal(); switchView('executions'); showExecutionDetails('${executionId}'); return false;" style="color: var(--primary); text-decoration: underline;">
+                ${executionId.substring(0, 8)}...
+              </a>
+            </div>
+          ` : ""}
+          ${agent.versionTag ? `
+            <div>
+              <strong>Version:</strong> 
+              <span class="version-link">${agent.versionTag}</span>
+            </div>
+          ` : ""}
+          <div><strong>Tasks:</strong> ${agent.tasks?.length || 0}</div>
+          <div><strong>Created:</strong> ${formatDateForDisplay(createdAt)}</div>
+        </div>
       </div>
     </div>
   `;
@@ -556,26 +577,36 @@ async function showAgentDetails(agentId) {
     const agent = data.agent;
     
     const modalBody = document.getElementById("modal-body");
+    const agentName = agent.name || agent.id || "Unknown Agent";
     modalBody.innerHTML = `
-      <h2>Agent Task: ${agent.id}</h2>
-      <p><strong>Status:</strong> <span class="status-badge ${agent.status}">${agent.status}</span></p>
-      <p><strong>Type:</strong> ${agent.type}</p>
-      ${agent.execution ? `
-        <p><strong>Execution:</strong> 
-          <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${agent.execution.executionId}'); return false;">
-            ${agent.execution.executionId}
-          </a>
-        </p>
-      ` : ""}
-      ${agent.workflow ? `
-        <p><strong>Workflow:</strong> 
-          <a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;">
-            ${agent.workflow.name}
-          </a>
-        </p>
-        ${agent.workflow.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.workflow.versionTag}</span></p>` : ""}
-      ` : ""}
-      ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
+      <h2>${agentName}</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: 0.5rem;">
+        <div><strong>Status:</strong> <span class="status-badge ${agent.status}">${agent.status}</span></div>
+        <div><strong>Type:</strong> ${agent.type || "unknown"}</div>
+        <div><strong>Tasks:</strong> ${agent.tasks?.length || 0}</div>
+        ${agent.workflow ? `
+          <div>
+            <strong>Workflow:</strong> 
+            <a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
+              ${agent.workflow.name}
+            </a>
+          </div>
+        ` : ""}
+        ${agent.execution ? `
+          <div>
+            <strong>Execution:</strong> 
+            <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${agent.execution.executionId || agent.execution.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
+              ${(agent.execution.executionId || agent.execution.id || "").substring(0, 8)}...
+            </a>
+          </div>
+        ` : ""}
+        ${agent.versionTag || agent.workflow?.versionTag ? `
+          <div>
+            <strong>Version:</strong> 
+            <span class="version-link">${agent.versionTag || agent.workflow.versionTag}</span>
+          </div>
+        ` : ""}
+      </div>
       <p><strong>Created:</strong> ${formatDateForDisplay(agent.startedAt)}</p>
       ${agent.readyAt ? `<p><strong>Ready:</strong> ${formatDateForDisplay(agent.readyAt)}</p>` : ""}
       ${agent.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(agent.completedAt)}</p>` : ""}

@@ -100,76 +100,18 @@
           <button class="btn btn-primary" onclick="loadAgents()">Refresh</button>
         </div>
         
-        <!-- Status Definitions -->
-        <div class="section" style="margin-bottom: 2rem;">
-          <h3>Agent Task Status Definitions</h3>
-          <div class="status-definitions">
-            <div class="status-definition">
-              <span class="status-badge queued">queued</span>
-              <div class="status-definition-content">
-                <strong>Queued</strong>
-                <p>Task has been created and is waiting to be processed by the agent processor. The processor automatically picks up queued tasks and attempts to execute them.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge processing">processing</span>
-              <div class="status-definition-content">
-                <strong>Processing</strong>
-                <p>Task is currently being processed by the agent executor. Simple tasks (file creation, test running) are executed automatically. Complex tasks require manual intervention.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge ready">ready</span>
-              <div class="status-definition-content">
-                <strong>Ready</strong>
-                <p><strong>Why "ready" instead of "completed"?</strong> The agent processor has attempted automatic execution. Simple tasks may have been executed, but complex implementation tasks require Cursor Chat for completion. "Ready" means the task is ready for you to complete the remaining work manually, then mark it as completed.</p>
-                <p style="margin-top: 0.5rem;">Use Cursor Chat with the context file (`.cursor/agent-processing.json`) to complete remaining tasks, then mark as complete with the "✓ Complete" button or <code>kad agent complete &lt;task-id&gt;</code>.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge queued">queued</span>
-              <div class="status-definition-content">
-                <strong>Queued</strong>
-                <p>Task has been created and is waiting to be processed by the agent processor.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge processing">processing</span>
-              <div class="status-definition-content">
-                <strong>Processing</strong>
-                <p>Task is currently being processed by the agent executor. Automatic tasks may be executed.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge ready">ready</span>
-              <div class="status-definition-content">
-                <strong>Ready</strong>
-                <p>Task has been processed and is ready for manual completion via Cursor Chat. Some tasks may have been executed automatically, but complex tasks require human intervention. Use Cursor Chat with the context file to complete remaining tasks, then mark as complete with <code>kad agent complete &lt;task-id&gt;</code>.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge completed">completed</span>
-              <div class="status-definition-content">
-                <strong>Completed</strong>
-                <p>Task has been fully completed. All implementation tasks are done, progress and review files have been updated, and the task is marked as complete in the review document.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge failed">failed</span>
-              <div class="status-definition-content">
-                <strong>Failed</strong>
-                <p>Task encountered an error during processing. Check the task details for error information.</p>
-              </div>
-            </div>
-            <div class="status-definition">
-              <span class="status-badge partial">partial</span>
-              <div class="status-definition-content">
-                <strong>Partial</strong>
-                <p>Some tasks were executed successfully, but some failed. Review the execution results and complete remaining tasks manually.</p>
-              </div>
-            </div>
+        <!-- Status Definitions (Compact) -->
+        <details class="section" style="margin-bottom: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.875rem; color: var(--text-light);">Status Definitions</summary>
+          <div style="margin-top: 0.75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.8125rem;">
+            <div><span class="status-badge queued">queued</span> <span style="color: var(--text-light);">Waiting to be processed</span></div>
+            <div><span class="status-badge processing">processing</span> <span style="color: var(--text-light);">Currently executing</span></div>
+            <div><span class="status-badge ready">ready</span> <span style="color: var(--text-light);">Ready for manual completion</span></div>
+            <div><span class="status-badge completed">completed</span> <span style="color: var(--text-light);">Fully completed</span></div>
+            <div><span class="status-badge failed">failed</span> <span style="color: var(--text-light);">Error occurred</span></div>
+            <div><span class="status-badge partial">partial</span> <span style="color: var(--text-light);">Partially completed</span></div>
           </div>
-        </div>
+        </details>
         
         <div id="agents-list" class="list"></div>
       </div>
