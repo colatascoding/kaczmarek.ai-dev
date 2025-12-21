@@ -491,13 +491,22 @@ function filterWorkflowSteps(filterType, workflowId) {
 // Expose filterWorkflowSteps globally
 window.filterWorkflowSteps = filterWorkflowSteps;
 
+// Store all agents for filtering/sorting
+let allAgents = [];
+
 /**
  * Load agents
  */
 async function loadAgents() {
   try {
     const data = await apiCall("/api/agents");
-    renderAgents(data.agents || [], "agents-list");
+    allAgents = data.agents || [];
+    
+    // Populate workflow filter
+    populateWorkflowFilter(allAgents);
+    
+    // Apply filters and sorting
+    filterAndSortAgents();
   } catch (error) {
     console.error("Failed to load agents:", error);
     document.getElementById("agents-list").innerHTML = 
@@ -506,17 +515,131 @@ async function loadAgents() {
 }
 
 /**
+ * Populate workflow filter dropdown
+ */
+function populateWorkflowFilter(agents) {
+  const workflowFilter = document.getElementById("agent-workflow-filter");
+  if (!workflowFilter) return;
+  
+  // Get unique workflows
+  const workflows = new Map();
+  agents.forEach(agent => {
+    if (agent.workflow && agent.workflow.name) {
+      workflows.set(agent.workflow.id, agent.workflow.name);
+    }
+  });
+  
+  // Clear existing options except "All"
+  workflowFilter.innerHTML = '<option value="all">All Workflows</option>';
+  
+  // Add workflow options
+  Array.from(workflows.entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .forEach(([id, name]) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = name;
+      workflowFilter.appendChild(option);
+    });
+}
+
+/**
+ * Filter and sort agents
+ */
+function filterAndSortAgents() {
+  if (!allAgents || allAgents.length === 0) {
+    renderAgents([], "agents-list");
+    return;
+  }
+  
+  let filtered = [...allAgents];
+  
+  // Apply status filter
+  const statusFilter = document.getElementById("agent-status-filter")?.value || "all";
+  if (statusFilter !== "all") {
+    filtered = filtered.filter(agent => agent.status === statusFilter);
+  }
+  
+  // Apply workflow filter
+  const workflowFilter = document.getElementById("agent-workflow-filter")?.value || "all";
+  if (workflowFilter !== "all") {
+    filtered = filtered.filter(agent => agent.workflow && agent.workflow.id === workflowFilter);
+  }
+  
+  // Apply sorting
+  const sortBy = document.getElementById("agent-sort")?.value || "newest";
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case "newest":
+        const dateA = new Date(a.createdAt || a.startedAt || 0);
+        const dateB = new Date(b.createdAt || b.startedAt || 0);
+        return dateB - dateA; // Descending (newest first)
+      
+      case "oldest":
+        const dateAOld = new Date(a.createdAt || a.startedAt || 0);
+        const dateBOld = new Date(b.createdAt || b.startedAt || 0);
+        return dateAOld - dateBOld; // Ascending (oldest first)
+      
+      case "name-asc":
+        const nameA = (a.name || "").toLowerCase();
+        const nameB = (b.name || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      
+      case "name-desc":
+        const nameADesc = (a.name || "").toLowerCase();
+        const nameBDesc = (b.name || "").toLowerCase();
+        return nameBDesc.localeCompare(nameADesc);
+      
+      case "status":
+        return (a.status || "").localeCompare(b.status || "");
+      
+      case "tasks-asc":
+        return (a.tasks?.length || 0) - (b.tasks?.length || 0);
+      
+      case "tasks-desc":
+        return (b.tasks?.length || 0) - (a.tasks?.length || 0);
+      
+      default:
+        return 0;
+    }
+  });
+  
+  renderAgents(filtered, "agents-list");
+}
+
+// Expose filterAndSortAgents globally
+window.filterAndSortAgents = filterAndSortAgents;
+
+/**
  * Render agents
  */
 function renderAgents(agents, containerId) {
   const container = document.getElementById(containerId);
   
+  // Show count if filtered
+  const totalCount = allAgents.length;
+  const filteredCount = agents.length;
+  const isFiltered = filteredCount !== totalCount;
+  
   if (agents.length === 0) {
-    container.innerHTML = `<div class="empty-state"><h3>No agent tasks</h3><p>Agent tasks will appear here when workflows are executed</p></div>`;
+    if (isFiltered) {
+      container.innerHTML = `<div class="empty-state"><h3>No agents match the current filters</h3><p>Showing 0 of ${totalCount} agents</p></div>`;
+    } else {
+      container.innerHTML = `<div class="empty-state"><h3>No agent tasks</h3><p>Agent tasks will appear here when workflows are executed</p></div>`;
+    }
     return;
   }
   
-  container.innerHTML = agents.map(agent => {
+  // Add count display before the list
+  const countDisplay = isFiltered 
+    ? `<div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg); border-radius: 0.5rem; font-size: 0.875rem; color: var(--text-light);">
+         Showing ${filteredCount} of ${totalCount} agents
+       </div>`
+    : `<div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg); border-radius: 0.5rem; font-size: 0.875rem; color: var(--text-light);">
+         ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'}
+       </div>`;
+  
+  container.innerHTML = countDisplay + agents.map(agent => {
     const agentId = agent.id || "";
     const executionId = agent.execution?.executionId || agent.executionId || "";
     const createdAt = agent.createdAt || agent.startedAt || new Date().toISOString();
@@ -579,7 +702,12 @@ async function showAgentDetails(agentId) {
     const modalBody = document.getElementById("modal-body");
     const agentName = agent.name || agent.id || "Unknown Agent";
     modalBody.innerHTML = `
-      <h2>${agentName}</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0;">${agentName}</h2>
+        <button class="btn btn-secondary" onclick="copyAgentSummary('${agent.id}')" title="Copy agent summary to clipboard for debugging">
+          📋 Copy Summary
+        </button>
+      </div>
       <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: 0.5rem;">
         <div><strong>Status:</strong> <span class="status-badge ${agent.status}">${agent.status}</span></div>
         <div><strong>Type:</strong> ${agent.type || "unknown"}</div>
@@ -607,6 +735,14 @@ async function showAgentDetails(agentId) {
           </div>
         ` : ""}
       </div>
+      ${agent.autoCompleted ? `
+        <div style="margin-bottom: 1rem; padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem;">
+          <strong>Auto-Completed:</strong> ${agent.autoCompletedReason || "No tasks to implement"}
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
+            This agent task was automatically completed because there were no tasks to implement. This typically happens when all tasks in the review file are already completed.
+          </p>
+        </div>
+      ` : ""}
       <p><strong>Created:</strong> ${formatDateForDisplay(agent.startedAt)}</p>
       ${agent.readyAt ? `<p><strong>Ready:</strong> ${formatDateForDisplay(agent.readyAt)}</p>` : ""}
       ${agent.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(agent.completedAt)}</p>` : ""}
@@ -648,6 +784,158 @@ async function showAgentDetails(agentId) {
 
 // Expose showAgentDetails globally
 window.showAgentDetails = showAgentDetails;
+
+/**
+ * Copy agent summary to clipboard
+ */
+async function copyAgentSummary(agentId) {
+  try {
+    // Fetch fresh data if not already available
+    const data = await apiCall(`/api/agents/${agentId}`);
+    const agent = data.agent;
+    
+    if (!agent) {
+      throw new Error("Agent data not found.");
+    }
+    
+    // Format dates
+    const formatDate = (dateValue) => {
+      if (!dateValue) return "N/A";
+      try {
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return "Invalid date";
+        return date.toISOString();
+      } catch (e) {
+        return String(dateValue);
+      }
+    };
+    
+    let summary = `# Agent Task Summary: ${agent.id}\n\n`;
+    summary += `## Basic Information\n`;
+    summary += `- **Agent ID:** ${agent.id}\n`;
+    summary += `- **Name:** ${agent.name || "N/A"}\n`;
+    summary += `- **Status:** ${agent.status} ${agent.status === "completed" ? "✓" : agent.status === "failed" ? "✗" : ""}\n`;
+    summary += `- **Type:** ${agent.type || "unknown"}\n`;
+    summary += `- **Tasks Count:** ${agent.tasks?.length || 0}\n`;
+    
+    if (agent.workflow) {
+      summary += `- **Workflow:** ${agent.workflow.name} (${agent.workflow.id})\n`;
+    }
+    if (agent.execution) {
+      summary += `- **Execution:** ${agent.execution.executionId || agent.execution.id || "N/A"}\n`;
+    }
+    if (agent.versionTag) {
+      summary += `- **Version Tag:** ${agent.versionTag}\n`;
+    }
+    
+    summary += `- **Created:** ${formatDate(agent.startedAt || agent.createdAt)}\n`;
+    if (agent.readyAt) {
+      summary += `- **Ready:** ${formatDate(agent.readyAt)}\n`;
+    }
+    if (agent.completedAt) {
+      summary += `- **Completed:** ${formatDate(agent.completedAt)}\n`;
+    }
+    if (agent.processingStartedAt) {
+      summary += `- **Processing Started:** ${formatDate(agent.processingStartedAt)}\n`;
+    }
+    
+    if (agent.autoCompleted) {
+      summary += `\n## Auto-Completion\n`;
+      summary += `- **Auto-Completed:** Yes\n`;
+      summary += `- **Reason:** ${agent.autoCompletedReason || "No tasks to implement"}\n`;
+    }
+    
+    if (agent.error) {
+      summary += `\n## Error\n\`\`\`\n${agent.error}\n\`\`\`\n`;
+    }
+    
+    if (agent.prompt) {
+      summary += `\n## Prompt\n\`\`\`\n${agent.prompt}\n\`\`\`\n`;
+    }
+    
+    if (agent.tasks && agent.tasks.length > 0) {
+      summary += `\n## Tasks (${agent.tasks.length})\n\n`;
+      agent.tasks.forEach((task, index) => {
+        summary += `### Task ${index + 1}\n`;
+        if (task.description) {
+          summary += `- **Description:** ${task.description}\n`;
+        }
+        if (task.text) {
+          summary += `- **Text:** ${task.text}\n`;
+        }
+        if (task.line) {
+          summary += `- **Line:** ${task.line}\n`;
+        }
+        summary += `\n`;
+      });
+    } else {
+      summary += `\n## Tasks\n`;
+      summary += `No tasks to implement. This agent was likely auto-completed.\n\n`;
+    }
+    
+    if (agent.executionResults) {
+      summary += `\n## Execution Results\n\n`;
+      if (agent.executionResults.executed && agent.executionResults.executed.length > 0) {
+        summary += `### Executed (${agent.executionResults.executed.length})\n`;
+        agent.executionResults.executed.forEach((item, idx) => {
+          summary += `${idx + 1}. ${item.task.description || item.task.text || "Task"}\n`;
+        });
+        summary += `\n`;
+      }
+      if (agent.executionResults.failed && agent.executionResults.failed.length > 0) {
+        summary += `### Failed (${agent.executionResults.failed.length})\n`;
+        agent.executionResults.failed.forEach((item, idx) => {
+          summary += `${idx + 1}. ${item.task.description || item.task.text || "Task"}\n`;
+          if (item.error) {
+            summary += `   Error: ${item.error}\n`;
+          }
+        });
+        summary += `\n`;
+      }
+      if (agent.executionResults.skipped && agent.executionResults.skipped.length > 0) {
+        summary += `### Skipped (${agent.executionResults.skipped.length})\n`;
+        agent.executionResults.skipped.forEach((item, idx) => {
+          summary += `${idx + 1}. ${item.task.description || item.task.text || "Task"}\n`;
+        });
+        summary += `\n`;
+      }
+    }
+    
+    summary += `\n---\n`;
+    summary += `*Generated from kaczmarek.ai-dev agent task ${agent.id}*\n`;
+    
+    await navigator.clipboard.writeText(summary);
+    
+    const successMsg = document.createElement("div");
+    successMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    successMsg.textContent = "✓ Agent summary copied to clipboard!";
+    document.body.appendChild(successMsg);
+    
+    setTimeout(() => {
+      if (document.body.contains(successMsg)) {
+        document.body.removeChild(successMsg);
+      }
+    }, 3000);
+    
+    console.log("Agent summary copied to clipboard");
+  } catch (error) {
+    console.error("Failed to copy agent summary:", error);
+    
+    const errorMsg = document.createElement("div");
+    errorMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    errorMsg.textContent = `✗ Failed to copy: ${error.message}`;
+    document.body.appendChild(errorMsg);
+    
+    setTimeout(() => {
+      if (document.body.contains(errorMsg)) {
+        document.body.removeChild(errorMsg);
+      }
+    }, 5000);
+  }
+}
+
+// Expose copyAgentSummary globally
+window.copyAgentSummary = copyAgentSummary;
 
 /**
  * Complete an agent task
