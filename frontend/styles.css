@@ -158,11 +158,14 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 
 .list-item:hover {
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   transform: translateY(-2px);
+  border-color: var(--primary);
+  background: #f8faff;
 }
 
 .list-item-header {
@@ -621,6 +624,39 @@ code {
   border-radius: 0.25rem;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.execution-type-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.execution-type-human {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.execution-type-background-agent {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.filter-btn {
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--bg) !important;
+  border-color: var(--primary) !important;
+}
+
+.filter-btn.active {
+  background: var(--primary) !important;
+  color: white !important;
+  border-color: var(--primary) !important;
 }
 
 .workflow-step-description {

@@ -7,6 +7,23 @@ const API_BASE = ""; // Same origin
 // State
 let currentView = "dashboard";
 
+/**
+ * Safely format a date value for display
+ */
+function formatDateForDisplay(dateValue) {
+  if (!dateValue) return "N/A";
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      // Return the original value if it's not a valid date
+      return String(dateValue);
+    }
+    return date.toLocaleString();
+  } catch (e) {
+    return String(dateValue);
+  }
+}
+
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
@@ -154,9 +171,9 @@ function renderWorkflows(workflows) {
   }
   
   container.innerHTML = workflows.map(wf => `
-    <div class="list-item">
+    <div class="list-item" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">
       <div class="list-item-header">
-        <div class="list-item-title" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">${wf.name}</div>
+        <div class="list-item-title">${wf.name}</div>
         <div class="list-item-meta">
           ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
           ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
@@ -230,7 +247,15 @@ async function showWorkflowDetails(workflowId) {
         </div>
       ` : ""}
       
-      <h3 style="margin-top: 1.5rem;">Workflow Steps (${wf.steps?.length || 0})</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Workflow Steps (${wf.steps?.length || 0})</h3>
+        <div class="workflow-steps-filter" style="display: flex; gap: 0.5rem; align-items: center;">
+          <label style="font-size: 0.875rem; color: var(--text-light);">Filter:</label>
+          <button class="filter-btn active" data-filter="all" onclick="filterWorkflowSteps('all', '${workflowId}')" style="padding: 0.375rem 0.75rem; border: 1px solid var(--border); background: var(--card-bg); border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem;">All</button>
+          <button class="filter-btn" data-filter="human" onclick="filterWorkflowSteps('human', '${workflowId}')" style="padding: 0.375rem 0.75rem; border: 1px solid var(--border); background: var(--card-bg); border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem;">Human</button>
+          <button class="filter-btn" data-filter="background-agent" onclick="filterWorkflowSteps('background-agent', '${workflowId}')" style="padding: 0.375rem 0.75rem; border: 1px solid var(--border); background: var(--card-bg); border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem;">Background Agent</button>
+        </div>
+      </div>
       ${wf.steps && Array.isArray(wf.steps) && wf.steps.length > 0 ? `
       <div class="workflow-steps-view" id="workflow-steps-container" style="display: block; visibility: visible;">
       </div>
@@ -249,7 +274,7 @@ async function showWorkflowDetails(workflowId) {
               <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${e.executionId}'); return false;">
                 ${e.executionId}
               </a>
-              - ${e.status} - ${new Date(e.startedAt).toLocaleString()}
+              - ${e.status} - ${formatDateForDisplay(e.startedAt)}
               ${e.agents?.length > 0 ? ` (${e.agents.length} agents)` : ""}
             </li>
           `).join("")}
@@ -267,18 +292,27 @@ async function showWorkflowDetails(workflowId) {
       console.log("Rendering", wf.steps.length, "steps using DOM API");
       
       wf.steps.forEach((step, index) => {
+        // Define variables outside try block to ensure they're always in scope
+        let stepCard, stepId, module, action, description, inputs, outputs, onSuccess, onFailure;
+        let executionType, executionTypeLabel;
+        
         try {
-          const stepCard = document.createElement("div");
+          stepCard = document.createElement("div");
           stepCard.className = "workflow-step-card";
           
-          const stepId = step.id || `step-${index}`;
-          const module = step.module || "unknown";
-          const action = step.action || "unknown";
-          const description = step.description || "";
-          const inputs = step.inputs || {};
-          const outputs = step.outputs || [];
-          const onSuccess = step.onSuccess;
-          const onFailure = step.onFailure || "";
+          stepId = step.id || `step-${index}`;
+          module = step.module || "unknown";
+          action = step.action || "unknown";
+          description = step.description || "";
+          inputs = step.inputs || {};
+          outputs = step.outputs || [];
+          onSuccess = step.onSuccess;
+          onFailure = step.onFailure || "";
+          
+          // Determine execution type: "background-agent" if module is "agent", otherwise "human"
+          executionType = (module === "agent") ? "background-agent" : "human";
+          executionTypeLabel = (executionType === "background-agent") ? "Background Agent" : "Human";
+          stepCard.setAttribute("data-execution-type", executionType);
           
           // Build success routing display
           let successDisplay = "";
@@ -351,6 +385,7 @@ async function showWorkflowDetails(workflowId) {
                 <div class="workflow-step-meta">
                   <span class="module-badge">${module}</span>
                   <span class="action-badge">${action}</span>
+                  <span class="execution-type-badge execution-type-${executionType}">${executionTypeLabel}</span>
                 </div>
               </div>
             </div>
@@ -391,8 +426,70 @@ async function showWorkflowDetails(workflowId) {
     }
   } catch (error) {
     console.error("Failed to load workflow details:", error);
+    alert("Failed to load workflow details. Check console for details.");
   }
 }
+
+// Expose showWorkflowDetails globally
+window.showWorkflowDetails = showWorkflowDetails;
+
+/**
+ * Filter workflow steps by execution type
+ */
+function filterWorkflowSteps(filterType, workflowId) {
+  const stepsContainer = document.getElementById("workflow-steps-container");
+  if (!stepsContainer) return;
+  
+  // Update filter buttons
+  const filterButtons = document.querySelectorAll(`.workflow-steps-filter .filter-btn`);
+  filterButtons.forEach(btn => {
+    if (btn.getAttribute("data-filter") === filterType) {
+      btn.classList.add("active");
+      btn.style.background = "var(--primary)";
+      btn.style.color = "white";
+      btn.style.borderColor = "var(--primary)";
+    } else {
+      btn.classList.remove("active");
+      btn.style.background = "var(--card-bg)";
+      btn.style.color = "var(--text)";
+      btn.style.borderColor = "var(--border)";
+    }
+  });
+  
+  // Filter steps
+  const stepCards = stepsContainer.querySelectorAll(".workflow-step-card");
+  let visibleCount = 0;
+  
+  stepCards.forEach(card => {
+    const executionType = card.getAttribute("data-execution-type");
+    
+    if (filterType === "all") {
+      card.style.display = "block";
+      visibleCount++;
+    } else if (filterType === executionType) {
+      card.style.display = "block";
+      visibleCount++;
+    } else {
+      card.style.display = "none";
+    }
+  });
+  
+  // Update step count in header
+  const stepsHeader = document.querySelector("h3");
+  if (stepsHeader && stepsHeader.textContent.includes("Workflow Steps")) {
+    const totalSteps = stepCards.length;
+    if (filterType === "all") {
+      stepsHeader.textContent = `Workflow Steps (${totalSteps})`;
+    } else {
+      stepsHeader.textContent = `Workflow Steps (${visibleCount} of ${totalSteps})`;
+    }
+  }
+  
+  console.log(`Filtered steps: showing ${visibleCount} of ${stepCards.length} (filter: ${filterType})`);
+}
+
+// Expose filterWorkflowSteps globally
+window.filterWorkflowSteps = filterWorkflowSteps;
 
 /**
  * Load agents
@@ -440,7 +537,7 @@ function renderAgents(agents, containerId) {
       <div class="list-item-body">
         <p><strong>Type:</strong> ${agent.type || "unknown"}</p>
         <p><strong>Tasks:</strong> ${agent.tasks?.length || 0}</p>
-        <p><strong>Created:</strong> ${new Date(createdAt).toLocaleString()}</p>
+        <p><strong>Created:</strong> ${formatDateForDisplay(createdAt)}</p>
         ${executionId ? `<p><strong>Execution:</strong> <a href="#" onclick="event.stopPropagation(); switchView('executions'); showExecutionDetails('${executionId}'); return false;">${executionId.substring(0, 8)}...</a></p>` : ""}
         ${agent.workflow ? `<p><strong>Workflow:</strong> ${agent.workflow.name}</p>` : ""}
         ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
@@ -479,9 +576,9 @@ async function showAgentDetails(agentId) {
         ${agent.workflow.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.workflow.versionTag}</span></p>` : ""}
       ` : ""}
       ${agent.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${agent.versionTag}</span></p>` : ""}
-      <p><strong>Created:</strong> ${new Date(agent.startedAt).toLocaleString()}</p>
-      ${agent.readyAt ? `<p><strong>Ready:</strong> ${new Date(agent.readyAt).toLocaleString()}</p>` : ""}
-      ${agent.completedAt ? `<p><strong>Completed:</strong> ${new Date(agent.completedAt).toLocaleString()}</p>` : ""}
+      <p><strong>Created:</strong> ${formatDateForDisplay(agent.startedAt)}</p>
+      ${agent.readyAt ? `<p><strong>Ready:</strong> ${formatDateForDisplay(agent.readyAt)}</p>` : ""}
+      ${agent.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(agent.completedAt)}</p>` : ""}
       
       <h3 style="margin-top: 1.5rem;">Prompt</h3>
       <pre><code>${agent.prompt || "N/A"}</code></pre>
@@ -517,6 +614,9 @@ async function showAgentDetails(agentId) {
     console.error("Failed to load agent details:", error);
   }
 }
+
+// Expose showAgentDetails globally
+window.showAgentDetails = showAgentDetails;
 
 /**
  * Complete an agent task
@@ -631,8 +731,8 @@ function renderExecutions(executions, containerId) {
         <p><strong>Workflow:</strong> ${exec.workflow?.name || exec.workflowId || "Unknown"}</p>
         ${exec.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.workflow.versionTag}</span></p>` : ""}
         ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
-        <p><strong>Started:</strong> ${new Date(exec.startedAt).toLocaleString()}</p>
-        ${exec.completedAt ? `<p><strong>Completed:</strong> ${new Date(exec.completedAt).toLocaleString()}</p>` : ""}
+        <p><strong>Started:</strong> ${formatDateForDisplay(exec.startedAt)}</p>
+        ${exec.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(exec.completedAt)}</p>` : ""}
         ${exec.agentCount > 0 ? `<p><strong>Agents:</strong> ${exec.agentCount}</p>` : ""}
       </div>
     </div>
@@ -648,13 +748,18 @@ async function showExecutionDetails(executionId) {
     const exec = data.execution;
     const modalBody = document.getElementById("modal-body");
     modalBody.innerHTML = `
-      <h2>Execution: ${exec.executionId}</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0;">Execution: ${exec.executionId}</h2>
+        <button class="btn btn-primary" onclick="copyExecutionSummary('${executionId}')" title="Copy execution summary to clipboard for debugging">
+          📋 Copy Summary
+        </button>
+      </div>
       <p><strong>Workflow:</strong> ${data.workflow ? `<a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${data.workflow.id}'); return false;">${data.workflow.name}</a>` : exec.workflowId || "Unknown"}</p>
       ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
       ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
       <p><strong>Status:</strong> <span class="status-badge ${exec.status}">${exec.status}</span></p>
-      <p><strong>Started:</strong> ${new Date(exec.startedAt).toLocaleString()}</p>
-      ${exec.completedAt ? `<p><strong>Completed:</strong> ${new Date(exec.completedAt).toLocaleString()}</p>` : ""}
+      <p><strong>Started:</strong> ${formatDateForDisplay(exec.startedAt)}</p>
+      ${exec.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(exec.completedAt)}</p>` : ""}
       
       ${data.agents?.length > 0 ? `
         <h3 style="margin-top: 1.5rem;">Agents (${data.agents.length})</h3>
@@ -671,14 +776,264 @@ async function showExecutionDetails(executionId) {
       ` : ""}
       
       <h3 style="margin-top: 1.5rem;">Steps (${data.steps?.length || 0})</h3>
-      <pre><code>${JSON.stringify(data.steps || [], null, 2)}</code></pre>
+      ${data.steps && data.steps.length > 0 ? `
+        <div style="margin-bottom: 1rem;">
+          ${(() => {
+            const completed = data.steps.filter(s => s.status === "completed").length;
+            const failed = data.steps.filter(s => s.status === "failed").length;
+            const total = data.steps.length;
+            return `
+              <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                <span><strong>Success:</strong> <span style="color: #10b981;">${completed} ✓</span></span>
+                <span><strong>Failed:</strong> <span style="color: #ef4444;">${failed} ✗</span></span>
+                <span><strong>Total:</strong> ${total}</span>
+              </div>
+              <div><strong>Overall:</strong> ${failed === 0 && total > 0 ? '<span style="color: #10b981;">✓ Success (Return Code: 0)</span>' : failed > 0 ? `<span style="color: #ef4444;">✗ Failed (Return Code: ${failed})</span>` : "N/A"}</div>
+            `;
+          })()}
+        </div>
+        <div style="max-height: 500px; overflow-y: auto;">
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${data.steps.map((step, idx) => {
+              const returnCode = step.return_code !== undefined && step.return_code !== null 
+                ? step.return_code 
+                : (step.status === "completed" ? 0 : step.status === "failed" ? 1 : null);
+              const statusColor = step.status === "completed" ? "#10b981" : step.status === "failed" ? "#ef4444" : "#f59e0b";
+              const returnCodeColor = returnCode === 0 ? "#10b981" : returnCode > 0 ? "#ef4444" : "var(--text-light)";
+              const hasError = step.error && step.error.trim().length > 0;
+              
+              return `
+                <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; ${hasError ? 'border-left: 4px solid #ef4444;' : ''}">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: ${hasError ? '0.75rem' : '0'};">
+                    <div style="flex: 1;">
+                      <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                        <code style="background: var(--bg); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">${step.step_id || step.id || `step-${idx}`}</code>
+                        <span style="color: ${statusColor}; font-weight: 600; font-size: 0.875rem;">${step.status || "unknown"}</span>
+                        <span style="color: ${returnCodeColor}; font-weight: 600; font-family: monospace; font-size: 0.875rem;">
+                          ${returnCode !== null ? `Return Code: ${returnCode} ${returnCode === 0 ? "✓" : "✗"}` : ""}
+                        </span>
+                      </div>
+                      <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.875rem; color: var(--text-light);">
+                        <span><strong>Module:</strong> ${step.module || "N/A"}</span>
+                        <span><strong>Action:</strong> ${step.action || "N/A"}</span>
+                        ${step.duration ? `<span><strong>Duration:</strong> ${step.duration}ms</span>` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  ${hasError ? `
+                    <div style="margin-top: 0.75rem; padding: 0.75rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 0.375rem;">
+                      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="color: #dc2626; font-weight: 600;">✗ Error</span>
+                      </div>
+                      <pre style="margin: 0; padding: 0.5rem; background: white; border-radius: 0.25rem; font-size: 0.8125rem; color: #991b1b; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${step.error}</pre>
+                    </div>
+                  ` : ""}
+                  ${step.inputs && Object.keys(step.inputs).length > 0 ? `
+                    <details style="margin-top: 0.5rem;">
+                      <summary style="cursor: pointer; font-size: 0.875rem; color: var(--text-light); font-weight: 600;">View Inputs</summary>
+                      <pre style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.75rem; overflow-x: auto;"><code>${JSON.stringify(step.inputs, null, 2)}</code></pre>
+                    </details>
+                  ` : ""}
+                  ${step.outputs && Object.keys(step.outputs).length > 0 ? `
+                    <details style="margin-top: 0.5rem;">
+                      <summary style="cursor: pointer; font-size: 0.875rem; color: var(--text-light); font-weight: 600;">View Outputs</summary>
+                      <pre style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.75rem; overflow-x: auto;"><code>${JSON.stringify(step.outputs, null, 2)}</code></pre>
+                    </details>
+                  ` : ""}
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+        <details style="margin-top: 1rem;">
+          <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">Full Step Details (JSON)</summary>
+          <pre style="max-height: 300px; overflow-y: auto;"><code>${JSON.stringify(data.steps || [], null, 2)}</code></pre>
+        </details>
+      ` : "<p>No steps executed yet</p>"}
     `;
+    
+    // Store execution data for copying
+    window.currentExecutionData = data;
     
     document.getElementById("modal").classList.add("active");
   } catch (error) {
     console.error("Failed to load execution details:", error);
   }
 }
+
+// Expose showExecutionDetails globally
+window.showExecutionDetails = showExecutionDetails;
+
+/**
+ * Copy execution summary to clipboard for debugging
+ */
+async function copyExecutionSummary(executionId) {
+  try {
+    const data = window.currentExecutionData;
+    if (!data) {
+      // Reload if not available
+      const response = await fetch(`/api/executions/${executionId}`);
+      data = await response.json();
+    }
+    
+    const exec = data.execution;
+    const workflow = data.workflow;
+    const steps = data.steps || [];
+    const agents = data.agents || [];
+    
+    // Calculate overall return code from steps
+    const completedSteps = steps.filter(s => s.status === "completed");
+    const failedSteps = steps.filter(s => s.status === "failed");
+    const totalSteps = steps.length;
+    const successCount = completedSteps.length;
+    const failureCount = failedSteps.length;
+    const overallReturnCode = failureCount === 0 && totalSteps > 0 ? 0 : failureCount > 0 ? failureCount : null;
+    
+    // Format execution summary for debugging
+    let summary = `# Execution Summary: ${exec.executionId}\n\n`;
+    summary += `## Basic Information\n`;
+    summary += `- **Execution ID:** ${exec.executionId}\n`;
+    summary += `- **Status:** ${exec.status} ${exec.status === "completed" ? "✓" : exec.status === "failed" ? "✗" : ""}\n`;
+    summary += `- **Workflow:** ${workflow ? `${workflow.name} (${workflow.id})` : exec.workflowId || "Unknown"}\n`;
+    summary += `- **Version Tag:** ${exec.versionTag || data.workflow?.versionTag || "N/A"}\n`;
+    summary += `- **Steps Summary:** ${successCount} succeeded, ${failureCount} failed, ${totalSteps} total\n`;
+    summary += `- **Overall Return Code:** ${overallReturnCode !== null ? `${overallReturnCode} ${overallReturnCode === 0 ? "✓ Success" : "✗ Failed"}` : "N/A"}\n`;
+    
+    // Safely format dates
+    const formatDate = (dateValue) => {
+      if (!dateValue) return "N/A";
+      try {
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return "Invalid date";
+        return date.toISOString();
+      } catch (e) {
+        return String(dateValue);
+      }
+    };
+    
+    // Check if execution is still running
+    const isRunning = exec.status === "running" || exec.status === "pending" || !exec.completedAt;
+    
+    summary += `- **Started:** ${formatDate(exec.startedAt)}\n`;
+    if (exec.completedAt && !isNaN(new Date(exec.completedAt).getTime())) {
+      summary += `- **Completed:** ${formatDate(exec.completedAt)}\n`;
+      try {
+        const startDate = new Date(exec.startedAt);
+        const endDate = new Date(exec.completedAt);
+        if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+          const duration = endDate - startDate;
+          summary += `- **Duration:** ${Math.round(duration / 1000)}s\n`;
+        }
+      } catch (e) {
+        // Skip duration if dates are invalid
+      }
+    } else {
+      summary += `- **Completed:** ${isRunning ? "Still running" : "N/A"}\n`;
+    }
+    
+    if (exec.error) {
+      summary += `\n## Error\n\`\`\`\n${exec.error}\n\`\`\`\n`;
+    }
+    
+    if (agents.length > 0) {
+      summary += `\n## Agents (${agents.length})\n\n`;
+      agents.forEach((agent, index) => {
+        summary += `### Agent ${index + 1}: ${agent.id.substring(0, 8)}...\n`;
+        summary += `- **Status:** ${agent.status}\n`;
+        summary += `- **Type:** ${agent.type}\n`;
+        if (agent.createdAt) {
+          summary += `- **Created:** ${formatDate(agent.createdAt)}\n`;
+        }
+        if (agent.readyAt) {
+          summary += `- **Ready:** ${formatDate(agent.readyAt)}\n`;
+        }
+        if (agent.completedAt) {
+          summary += `- **Completed:** ${formatDate(agent.completedAt)}\n`;
+        }
+        summary += `\n`;
+      });
+    }
+    
+    if (steps.length > 0) {
+      summary += `\n## Step Executions (${steps.length})\n\n`;
+      steps.forEach((step, index) => {
+        summary += `### Step ${index + 1}: ${step.step_id || step.id || "unknown"}\n`;
+        summary += `- **Module:** ${step.module || "N/A"}\n`;
+        summary += `- **Action:** ${step.action || "N/A"}\n`;
+        summary += `- **Status:** ${step.status || "unknown"}\n`;
+        summary += `- **Return Code:** ${step.return_code !== undefined && step.return_code !== null ? step.return_code : (step.status === "completed" ? "0" : (step.status === "failed" ? "1" : "N/A"))} ${step.return_code === 0 ? "✓" : step.return_code > 0 ? "✗" : ""}\n`;
+        if (step.started_at) {
+          summary += `- **Started:** ${formatDate(step.started_at)}\n`;
+        }
+        if (step.completed_at) {
+          summary += `- **Completed:** ${formatDate(step.completed_at)}\n`;
+        }
+        if (step.duration) {
+          summary += `- **Duration:** ${step.duration}ms\n`;
+        }
+        if (step.inputs) {
+          try {
+            const inputs = typeof step.inputs === "string" ? JSON.parse(step.inputs) : step.inputs;
+            summary += `- **Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n`;
+          } catch (e) {
+            summary += `- **Inputs:** ${step.inputs}\n`;
+          }
+        }
+        if (step.outputs) {
+          try {
+            const outputs = typeof step.outputs === "string" ? JSON.parse(step.outputs) : step.outputs;
+            summary += `- **Outputs:**\n\`\`\`json\n${JSON.stringify(outputs, null, 2)}\n\`\`\`\n`;
+          } catch (e) {
+            summary += `- **Outputs:** ${step.outputs}\n`;
+          }
+        }
+        if (step.error) {
+          summary += `- **Error:**\n\`\`\`\n${step.error}\n\`\`\`\n`;
+        }
+        summary += `\n`;
+      });
+    }
+    
+    summary += `\n---\n`;
+    summary += `*Generated from kaczmarek.ai-dev execution ${exec.executionId}*\n`;
+    
+    // Copy to clipboard
+    await navigator.clipboard.writeText(summary);
+    
+    // Show success message
+    const successMsg = document.createElement("div");
+    successMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    successMsg.textContent = "✓ Execution summary copied to clipboard!";
+    document.body.appendChild(successMsg);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      if (document.body.contains(successMsg)) {
+        document.body.removeChild(successMsg);
+      }
+    }, 3000);
+    
+    console.log("Execution summary copied to clipboard");
+  } catch (error) {
+    console.error("Failed to copy execution summary:", error);
+    
+    // Show error message
+    const errorMsg = document.createElement("div");
+    errorMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    errorMsg.textContent = `✗ Failed to copy: ${error.message}`;
+    document.body.appendChild(errorMsg);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(errorMsg)) {
+        document.body.removeChild(errorMsg);
+      }
+    }, 5000);
+  }
+}
+
+// Expose copyExecutionSummary globally
+window.copyExecutionSummary = copyExecutionSummary;
 
 /**
  * Load versions
@@ -767,6 +1122,9 @@ function renderVersionSummary(version, containerId) {
 function closeModal() {
   document.getElementById("modal").classList.remove("active");
 }
+
+// Expose functions globally for onclick handlers
+window.closeModal = closeModal;
 
 // Close modal on outside click
 document.getElementById("modal")?.addEventListener("click", (e) => {
