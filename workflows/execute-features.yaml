@@ -2,6 +2,19 @@ name: "Execute Features from Review"
 version: "1.0.0"
 description: "Workflow to implement features from review document's Next Steps section"
 
+# Follow-up workflows based on outcomes
+followUpWorkflows:
+  - workflowId: "review-self"
+    name: "Review Self"
+    description: "Run a new review to identify new tasks"
+    reason: "No tasks found - run a review to identify new work"
+    onOutcome: ["no-tasks"]
+  - workflowId: "review-self"
+    name: "Review Self"
+    description: "Start a new review cycle"
+    reason: "All tasks completed - start a new review"
+    onOutcome: ["all-complete"]
+
 triggers:
   - type: "cli"
     command: "kad workflow run execute-features"

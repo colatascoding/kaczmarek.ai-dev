@@ -1077,8 +1077,34 @@ async function showExecutionDetails(executionId) {
       ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
       ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
       <p><strong>Status:</strong> <span class="status-badge ${exec.status}">${exec.status}</span></p>
+      ${exec.outcome ? `<p><strong>Outcome:</strong> <span style="padding: 0.25rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.875rem;">${exec.outcome}</span></p>` : ""}
       <p><strong>Started:</strong> ${formatDateForDisplay(exec.startedAt)}</p>
       ${exec.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(exec.completedAt)}</p>` : ""}
+      
+      ${exec.followUpSuggestions && exec.followUpSuggestions.length > 0 ? `
+        <div style="margin-top: 1.5rem; padding: 1rem; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 0.5rem;">
+          <h3 style="margin-top: 0; color: #1e40af;">Suggested Follow-Up Actions</h3>
+          <p style="font-size: 0.875rem; color: #1e3a8a; margin-bottom: 1rem;">
+            Based on the workflow outcome, here are suggested next steps:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${exec.followUpSuggestions.map((suggestion, idx) => `
+              <div style="padding: 0.75rem; background: white; border-radius: 0.375rem; border: 1px solid #93c5fd;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                  <div>
+                    <strong style="color: #1e40af;">${suggestion.name || suggestion.workflowId}</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #1e3a8a;">${suggestion.description || ""}</p>
+                    ${suggestion.reason ? `<p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: #64748b; font-style: italic;">${suggestion.reason}</p>` : ""}
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="runFollowUpWorkflow('${suggestion.workflowId}', '${exec.executionId}')" title="Run this follow-up workflow">
+                    ▶ Run
+                  </button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
       
       ${data.agents?.length > 0 ? `
         <h3 style="margin-top: 1.5rem;">Agents (${data.agents.length})</h3>
@@ -1182,6 +1208,51 @@ async function showExecutionDetails(executionId) {
 
 // Expose showExecutionDetails globally
 window.showExecutionDetails = showExecutionDetails;
+
+/**
+ * Run a follow-up workflow
+ */
+async function runFollowUpWorkflow(workflowId, parentExecutionId) {
+  if (!confirm(`Run follow-up workflow "${workflowId}"?\n\nThis will start a new workflow execution.`)) {
+    return;
+  }
+  
+  try {
+    showNotification("Starting follow-up workflow...", "info");
+    
+    const response = await fetch(`/api/workflows/${workflowId}/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        parentExecutionId: parentExecutionId
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to run workflow");
+    }
+    
+    const data = await response.json();
+    showNotification(`Follow-up workflow started! Execution ID: ${data.executionId.substring(0, 8)}...`, "success");
+    
+    // Close modal and refresh executions
+    closeModal();
+    if (currentView === "executions") {
+      loadExecutions();
+    } else {
+      switchView("executions");
+    }
+  } catch (error) {
+    console.error("Failed to run follow-up workflow:", error);
+    showNotification(`Failed to run workflow: ${error.message}`, "error");
+  }
+}
+
+// Expose runFollowUpWorkflow globally
+window.runFollowUpWorkflow = runFollowUpWorkflow;
 
 /**
  * Copy execution summary to clipboard for debugging
