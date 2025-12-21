@@ -11,13 +11,6 @@ document.body.innerHTML = `
   </div>
 `;
 
-// Mock navigator.clipboard
-global.navigator = {
-  clipboard: {
-    writeText: jest.fn().mockResolvedValue(undefined)
-  }
-};
-
 // Mock execution data with various date scenarios
 const mockExecutionDataValid = {
   execution: {
@@ -113,7 +106,6 @@ const mockExecutionDataMissingDates = {
 
 describe("Execution Summary Copy", () => {
   beforeEach(() => {
-    global.navigator.clipboard.writeText.mockClear();
     window.currentExecutionData = null;
   });
 
