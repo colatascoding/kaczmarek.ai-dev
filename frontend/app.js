@@ -43,7 +43,18 @@ function showNotification(message, type = "info") {
   };
   
   const notification = document.createElement("div");
-  notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: ${colors[type] || colors.info}; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000; max-width: 400px;`;
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${colors[type] || colors.info};
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 10000;
+    max-width: 400px;
+  `;
   notification.textContent = `${icons[type] || icons.info} ${message}`;
   document.body.appendChild(notification);
   
