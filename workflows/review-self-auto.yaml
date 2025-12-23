@@ -141,10 +141,21 @@ steps:
         The following content was generated automatically by Claude based on the current review/progress pair and recent changes:
         
         {{ steps.run-claude.outputs.output || 'Claude call failed (see execution details for error).' }}
-    onSuccess: "complete"
+    onSuccess: "append-claude-to-review"
     onFailure: "complete"  # Don't fail if progress file doesn't exist
 
-  # Step 9: Create version files if they don't exist
+  # Step 9: Append Claude's response to the review file as well
+  - id: "append-claude-to-review"
+    module: "review"
+    action: "append-review"
+    description: "Append Claude's automated review suggestions directly to the review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+      entry: "{{ steps.run-claude.outputs.output }}"
+    onSuccess: "complete"
+    onFailure: "complete"  # Non-fatal; user can still see suggestions in progress file
+
+  # Step 10: Create version files if they don't exist
   - id: "create-version"
     module: "system"
     action: "log"
@@ -155,7 +166,7 @@ steps:
     onSuccess: "complete"
     onFailure: "complete"
 
-  # Step 10: Error handler
+  # Step 11: Error handler
   - id: "error-handler"
     module: "system"
     action: "handle-error"
@@ -166,7 +177,7 @@ steps:
     onSuccess: "complete"
     onFailure: "complete"
 
-  # Step 11: Complete
+  # Step 12: Complete
   - id: "complete"
     module: "system"
     action: "notify-completion"
