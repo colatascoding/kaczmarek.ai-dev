@@ -19,7 +19,11 @@ Continuation from version 0-1. This version builds upon the previous version's a
 
 ## Next Steps
 
-- [ ] Add next steps for this version
+- [ ] Update `docs/TESTING_GUIDE.md` with the new Jest unit and integration test patterns
+- [ ] Document workflow outcome determination and follow-up logic in `docs/WORKFLOW_EXECUTION_ANALYSIS.md`
+- [ ] Add an agent filtering and sorting guide section to `docs/AGENT_DEBUGGING.md`
+- [ ] Fix the unresolved `{{ steps.launch-agent.outputs.agentTaskId }}` placeholders in `progress/version0-2.md`
+- [ ] Standardize `.env` handling and document the expected variables for Claude/API in `SETUP.md`
 
 
 
