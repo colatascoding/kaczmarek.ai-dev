@@ -159,6 +159,245 @@ The debugger automatically categorizes errors:
 - **parse_error**: JSON parsing failures
 - **module_error**: Module loading issues
 
+## Agent Filtering and Sorting
+
+### Overview
+
+The agent management UI includes powerful filtering and sorting capabilities to help you find and manage agent tasks efficiently. These features are available in the web interface at `/agents`.
+
+### Filtering Agents
+
+#### By Status
+
+Filter agents by their current status:
+
+```
+Status Filter Options:
+- All Statuses (default)
+- queued    - Task is waiting to be processed
+- processing - Task is currently being processed
+- ready     - Task is ready for Cursor Chat
+- completed - Task has been completed
+- failed    - Task encountered an error
+- partial   - Task partially completed
+```
+
+**How to use:**
+1. Open the web interface: `./kad api start` then visit http://localhost:3000
+2. Navigate to the "Agents" tab
+3. Use the "Status" dropdown to select a status
+4. The list will automatically update to show only agents with that status
+
+**Result count:**
+When filtered, the UI shows: "Showing X of Y agents" where X is the filtered count and Y is the total.
+
+#### By Workflow
+
+Filter agents by the workflow that created them:
+
+```
+Workflow Filter Options:
+- All Workflows (default)
+- [List of all workflows that have created agents]
+```
+
+**How to use:**
+1. Select a workflow from the "Workflow" dropdown
+2. The list will show only agents created by that workflow
+3. Workflow names are automatically populated from existing agents
+
+**Use cases:**
+- See all agents from the "execute-features" workflow
+- Find agents related to a specific review cycle
+- Debug workflow-specific issues
+
+### Sorting Agents
+
+The agent list can be sorted by multiple criteria:
+
+```
+Sort Options:
+- newest       - Most recent agents first (default)
+- oldest       - Oldest agents first
+- name-asc     - Agent name A-Z
+- name-desc    - Agent name Z-A
+- status       - Alphabetically by status
+- tasks-asc    - Fewest tasks first
+- tasks-desc   - Most tasks first
+```
+
+**How to use:**
+1. Select a sort option from the "Sort by" dropdown
+2. The list will automatically re-sort
+
+**Examples:**
+- `newest` - See what agents were created most recently
+- `tasks-desc` - Find agents with the most work to do
+- `status` - Group agents by their current status
+
+### Combined Filtering and Sorting
+
+Filters and sorting work together:
+
+**Example 1: Find recent failed agents**
+- Status: `failed`
+- Sort: `newest`
+- Result: Most recent failed agents first
+
+**Example 2: Find ready agents with most tasks**
+- Status: `ready`
+- Sort: `tasks-desc`
+- Result: Ready agents sorted by task count (most first)
+
+**Example 3: Find all agents from a workflow**
+- Workflow: `execute-features`
+- Sort: `newest`
+- Result: All execute-features agents, most recent first
+
+### Agent Count Display
+
+The UI displays helpful count information:
+
+- **When not filtered**: "5 agents" (total count)
+- **When filtered**: "Showing 2 of 5 agents" (filtered / total)
+- **When no results**: "No agents match the current filters"
+
+### Implementation Details
+
+Location: `frontend/views/agents.js`
+
+#### Filter Implementation
+
+```javascript
+function filterAndSortAgents() {
+  let filtered = [...allAgents];
+  
+  // Apply status filter
+  const statusFilter = document.getElementById("agent-status-filter")?.value || "all";
+  if (statusFilter !== "all") {
+    filtered = filtered.filter(agent => agent.status === statusFilter);
+  }
+  
+  // Apply workflow filter
+  const workflowFilter = document.getElementById("agent-workflow-filter")?.value || "all";
+  if (workflowFilter !== "all") {
+    filtered = filtered.filter(agent => 
+      agent.workflow && agent.workflow.id === workflowFilter
+    );
+  }
+  
+  // Apply sorting...
+  renderAgents(filtered, "agents-list");
+}
+```
+
+#### Sort Implementation
+
+```javascript
+filtered.sort((a, b) => {
+  switch (sortBy) {
+    case "newest":
+      const dateA = new Date(a.createdAt || a.startedAt || 0);
+      const dateB = new Date(b.createdAt || b.startedAt || 0);
+      return dateB - dateA;  // Descending (newest first)
+    
+    case "tasks-desc":
+      return (b.tasks?.length || 0) - (a.tasks?.length || 0);
+    
+    case "status":
+      return (a.status || "").localeCompare(b.status || "");
+    
+    // ... more sort options
+  }
+});
+```
+
+#### Workflow Filter Population
+
+The workflow filter is automatically populated from available agents:
+
+```javascript
+function populateWorkflowFilter(agents) {
+  const workflowFilter = document.getElementById("agent-workflow-filter");
+  
+  // Get unique workflows
+  const workflows = new Map();
+  agents.forEach(agent => {
+    if (agent.workflow && agent.workflow.name) {
+      workflows.set(agent.workflow.id, agent.workflow.name);
+    }
+  });
+  
+  // Clear and repopulate
+  workflowFilter.innerHTML = '<option value="all">All Workflows</option>';
+  
+  // Add workflow options (sorted alphabetically)
+  Array.from(workflows.entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .forEach(([id, name]) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = name;
+      workflowFilter.appendChild(option);
+    });
+}
+```
+
+### Auto-Completion Logic
+
+The agent loading system includes auto-completion detection:
+
+```javascript
+async function loadAgents() {
+  const data = await window.apiCall("/api/agents");
+  allAgents = data.agents || [];
+  
+  // Filter out auto-completed placeholder agents
+  allAgents = allAgents.filter(agent => {
+    // Keep agents that:
+    // - Have tasks to complete
+    // - Are not auto-completed placeholders
+    // - Have valid execution data
+    return agent.tasks?.length > 0 && 
+           !agent.autoCompleted &&
+           (agent.status !== "completed" || agent.hasRealWork);
+  });
+  
+  populateWorkflowFilter(allAgents);
+  filterAndSortAgents();
+}
+```
+
+### Best Practices
+
+1. **Use status filters** to focus on actionable agents (e.g., `ready` or `failed`)
+2. **Sort by newest** when debugging recent workflow runs
+3. **Sort by tasks-desc** to prioritize agents with more work
+4. **Filter by workflow** when investigating workflow-specific issues
+5. **Combine filters** for precise agent selection
+
+### Common Workflows
+
+#### Finding Failed Agents
+1. Filter: Status = `failed`
+2. Sort: `newest`
+3. Review error messages and debug
+
+#### Processing Ready Tasks
+1. Filter: Status = `ready`
+2. Sort: `tasks-desc`
+3. Work on agents with most tasks first
+
+#### Workflow Analysis
+1. Filter: Workflow = `execute-features`
+2. Sort: `newest`
+3. Review execution patterns and outcomes
+
+#### Task Completion Tracking
+1. Filter: Status = `completed`
+2. Sort: `newest`
+3. Verify recent completions
+
 ## Getting Help
 
 If tasks continue to fail:
@@ -168,5 +407,6 @@ If tasks continue to fail:
 3. Verify workflow configuration
 4. Check that review/progress files exist and are properly formatted
 5. Ensure the background processor is running (if using automatic processing)
+6. Use the web UI's filtering and sorting features to identify patterns in failures
 
 
