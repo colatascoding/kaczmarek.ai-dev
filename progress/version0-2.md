@@ -248,3 +248,30 @@ Background agent is processing the implementation tasks. Check status with:
 
 Next steps: Use the generated prompt with Cursor Chat to update review/progress files.
 
+
+## 2025-12-23
+
+**Automated Review Update (Claude)**
+
+The following content was generated automatically by Claude based on the current review/progress pair and recent changes:
+
+Claude call failed (see execution details for error).
+
+
+## 2025-12-23
+
+**Automated Review Update (Claude)**
+
+The following content was generated automatically by Claude based on the current review/progress pair and recent changes:
+
+Claude call failed (see execution details for error).
+
+
+## 2025-12-23
+
+**Automated Review Update (Claude)**
+
+The following content was generated automatically by Claude based on the current review/progress pair and recent changes:
+
+Claude call failed (see execution details for error).
+

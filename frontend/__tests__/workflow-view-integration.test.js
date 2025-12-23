@@ -1,9 +1,9 @@
 /**
  * Integration test for workflow view rendering
- * Tests the actual DOM rendering of workflow details
+ * Tests the actual DOM rendering of workflow details (Jest + jsdom)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+const { describe, it, expect, beforeEach, jest } = require("@jest/globals");
 
 // Setup DOM
 document.body.innerHTML = `
@@ -16,7 +16,7 @@ document.body.innerHTML = `
 `;
 
 // Mock fetch/API
-global.fetch = vi.fn();
+global.fetch = jest.fn();
 
 // Mock workflow data
 const mockWorkflowResponse = {
@@ -73,7 +73,7 @@ describe("Workflow View Integration", () => {
     modal = document.getElementById("modal");
     modalBody.innerHTML = "";
     modal.classList.remove("active");
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("workflow steps container is created and visible", () => {

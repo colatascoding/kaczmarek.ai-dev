@@ -1,8 +1,9 @@
 /**
  * Unit tests for workflow rendering functionality
+ * (Jest + jsdom)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+const { describe, it, expect, beforeEach, jest } = require("@jest/globals");
 
 // Mock DOM environment
 document.body.innerHTML = `
@@ -16,7 +17,7 @@ document.body.innerHTML = `
 `;
 
 // Mock the API call function
-global.apiCall = vi.fn();
+global.apiCall = jest.fn();
 
 // Mock workflow data
 const mockWorkflowData = {
@@ -66,7 +67,7 @@ describe("Workflow Rendering", () => {
     // Clear DOM
     document.getElementById("modal-body").innerHTML = "";
     document.getElementById("modal").classList.remove("active");
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("showWorkflowDetails renders workflow header", async () => {
