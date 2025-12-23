@@ -168,3 +168,4 @@ The `.gitignore` file ensures execution data is not committed:
 
 **Key Principle**: Definitions (YAML) are version controlled, execution state (database) is local-only.
 
+

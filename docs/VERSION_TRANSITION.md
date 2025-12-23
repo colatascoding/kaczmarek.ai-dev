@@ -122,3 +122,4 @@ The version transition happens automatically when:
 - New version starts with empty goals and next steps
 - You can add goals/next steps to the new version manually or via workflow
 
+
