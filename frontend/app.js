@@ -205,11 +205,16 @@ function renderWorkflows(workflows) {
     return;
   }
   
-  container.innerHTML = workflows.map(wf => `
+  container.innerHTML = workflows.map(wf => {
+    const mode = wf.automationMode || "human-in-the-loop";
+    const modeLabel = mode === "automated" ? "Automated" : (mode === "hybrid" ? "Hybrid" : "Human in the loop");
+    
+    return `
     <div class="list-item" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">
       <div class="list-item-header">
         <div class="list-item-title">${wf.name}</div>
         <div class="list-item-meta">
+          <span class="automation-badge automation-${mode}">${modeLabel}</span>
           ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
           ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
           <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); runWorkflow('${wf.id}');" style="margin-left: 0.5rem;">
@@ -220,11 +225,13 @@ function renderWorkflows(workflows) {
       ${wf.description ? `<div class="list-item-summary">${wf.description}</div>` : ""}
       <div class="list-item-body">
         <p><strong>ID:</strong> ${wf.id}</p>
+        <p><strong>Mode:</strong> ${modeLabel}</p>
         ${wf.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${wf.versionTag}</span></p>` : ""}
         ${wf.executionCount > 0 ? `<p><strong>Executions:</strong> ${wf.executionCount}</p>` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 /**
@@ -256,9 +263,14 @@ async function showWorkflowDetails(workflowId) {
     let content = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0;">${wf.name || workflowId}</h2>
-        <button class="btn btn-primary" onclick="runWorkflow('${workflowId}')">
-          ▶ Run Workflow
-        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-primary" onclick="runWorkflow('${workflowId}')">
+            ▶ Run Workflow
+          </button>
+          <button class="btn btn-secondary" onclick="runWorkflowStepByStep('${workflowId}')" title="Run this workflow in step-by-step mode">
+            ⏯ Step-by-step
+          </button>
+        </div>
       </div>
       <p><strong>Version:</strong> ${wf.version || "N/A"}</p>
       ${data.versionTag ? `<p><strong>Version Tag:</strong> <span class="version-link">${data.versionTag}</span></p>` : ""}
@@ -1146,9 +1158,20 @@ async function showExecutionDetails(executionId) {
       ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
       ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
       <p><strong>Status:</strong> <span class="status-badge ${exec.status}">${exec.status}</span></p>
+      <p><strong>Execution Mode:</strong> ${exec.executionMode === "step" ? "Step-by-step" : "Automatic"}</p>
       ${exec.outcome ? `<p><strong>Outcome:</strong> <span style="padding: 0.25rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.875rem;">${exec.outcome}</span></p>` : ""}
       <p><strong>Started:</strong> ${formatDateForDisplay(exec.startedAt)}</p>
       ${exec.completedAt ? `<p><strong>Completed:</strong> ${formatDateForDisplay(exec.completedAt)}</p>` : ""}
+      ${exec.executionMode === "step" && exec.status === "paused" ? `
+        <div style="margin: 1rem 0; padding: 0.75rem; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 0.5rem;">
+          <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem;"><strong>Step-by-step mode:</strong> Execution is paused after the last step. Use the controls below to continue.</p>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary btn-sm" onclick="runNextStep('${exec.executionId}')">
+              ▶ Run next step
+            </button>
+          </div>
+        </div>
+      ` : ""}
       
       ${exec.followUpSuggestions && Array.isArray(exec.followUpSuggestions) && exec.followUpSuggestions.length > 0 ? `
         <div style="margin-top: 1.5rem; padding: 1rem; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 0.5rem;">
@@ -1189,7 +1212,7 @@ async function showExecutionDetails(executionId) {
         </ul>
       ` : ""}
       
-      <h3 style="margin-top: 1.5rem;">Steps (${data.steps?.length || 0})</h3>
+      <h3 style="margin-top: 1.5rem;">Step-by-step run (Steps ${data.steps?.length || 0})</h3>
       ${data.steps && data.steps.length > 0 ? `
         <div style="margin-bottom: 1rem;">
           ${(() => {
@@ -1217,10 +1240,11 @@ async function showExecutionDetails(executionId) {
               const hasError = step.error && step.error.trim().length > 0;
               
               return `
-                <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; ${hasError ? 'border-left: 4px solid #ef4444;' : ''}">
+                <div class="workflow-step-card" style="${hasError ? 'border-left: 4px solid #ef4444;' : ''}">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: ${hasError ? '0.75rem' : '0'};">
                     <div style="flex: 1;">
                       <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-weight: 600; font-size: 0.8rem; color: var(--text-light);">Step ${idx + 1} of ${data.steps.length}</span>
                         <code style="background: var(--bg); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">${step.step_id || step.id || `step-${idx}`}</code>
                         <span style="color: ${statusColor}; font-weight: 600; font-size: 0.875rem;">${step.status || "unknown"}</span>
                         <span style="color: ${returnCodeColor}; font-weight: 600; font-family: monospace; font-size: 0.875rem;">
@@ -1361,6 +1385,46 @@ async function runFollowUpWorkflow(workflowId, parentExecutionId) {
 
 // Expose runFollowUpWorkflow globally
 window.runFollowUpWorkflow = runFollowUpWorkflow;
+
+/**
+ * Run the next step for a step-by-step execution
+ */
+async function runNextStep(executionId) {
+  try {
+    showNotification("Running next step...", "info");
+    
+    const response = await fetch(`/api/executions/${executionId}/next-step`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to run next step");
+    }
+    
+    showNotification(result.done ? "Workflow completed." : "Step completed. Execution paused.", "success");
+    
+    // Refresh execution details
+    showExecutionDetails(executionId);
+    
+    // Also refresh executions list
+    if (currentView === "executions") {
+      loadExecutions();
+    } else if (currentView === "dashboard") {
+      loadDashboard();
+    }
+  } catch (error) {
+    console.error("Failed to run next step:", error);
+    showNotification(`Failed to run next step: ${error.message}`, "error");
+  }
+}
+
+// Expose runNextStep globally
+window.runNextStep = runNextStep;
 
 /**
  * Copy execution summary to clipboard for debugging
@@ -1727,6 +1791,53 @@ async function runWorkflow(workflowId, params = {}) {
     console.error("Failed to run workflow:", error);
   }
 }
+
+/**
+ * Run a workflow in step-by-step mode
+ */
+async function runWorkflowStepByStep(workflowId, params = {}) {
+  try {
+    const workflowParams = { ...params, executionMode: "step" };
+    
+    const loadingMsg = document.createElement("div");
+    loadingMsg.id = "workflow-running-msg";
+    loadingMsg.style.cssText = "position: fixed; top: 20px; right: 20px; background: var(--secondary); color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000;";
+    loadingMsg.textContent = `Starting step-by-step workflow: ${workflowId}...`;
+    document.body.appendChild(loadingMsg);
+    
+    const response = await fetch(`/api/workflows/${workflowId}/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(workflowParams)
+    });
+    
+    const result = await response.json();
+    
+    document.body.removeChild(loadingMsg);
+    
+    if (result.success) {
+      showNotification(`Step-by-step execution started (ID: ${result.executionId.substring(0, 8)}...)`, "info");
+      
+      // Switch to executions and open this execution
+      setTimeout(() => {
+        if (currentView !== "executions") {
+          switchView("executions");
+        }
+        showExecutionDetails(result.executionId);
+      }, 500);
+    } else {
+      throw new Error(result.error || "Failed to start step-by-step workflow");
+    }
+  } catch (error) {
+    console.error("Failed to start step-by-step workflow:", error);
+    showNotification(`Failed to start step-by-step workflow: ${error.message}`, "error");
+  }
+}
+
+// Expose step-by-step runner globally
+window.runWorkflowStepByStep = runWorkflowStepByStep;
 
 // Expose runWorkflow globally
 window.runWorkflow = runWorkflow;

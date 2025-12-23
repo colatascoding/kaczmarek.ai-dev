@@ -1,6 +1,7 @@
 name: "Review Self (kaczmarek.ai-dev)"
 version: "1.0.0"
 description: "Review workflow that uses kaczmarek.ai-dev methodology to review itself"
+interactionMode: "automated"
 
 triggers:
   - type: "cli"

@@ -191,6 +191,32 @@ body {
   color: var(--text-light);
 }
 
+/* Automation mode badge */
+.automation-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: 0.5rem;
+}
+
+.automation-automated {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.automation-human-in-the-loop {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.automation-hybrid {
+  background: #e0f2f1;
+  color: #065f46;
+}
+
 /* Status Badge */
 .status-badge {
   display: inline-block;
@@ -563,10 +589,23 @@ code {
 
 .workflow-step-card {
   padding: 1rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1px solid #d1d5db;
   border-radius: 0.5rem;
   border-left: 4px solid var(--primary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* Make code/JSON blocks inside step cards high-contrast */
+.workflow-step-card pre {
+  color: var(--text);
+  background: #f9fafb;
+}
+
+.workflow-step-card code {
+  color: var(--text);
 }
 
 .workflow-step-header {
@@ -661,7 +700,7 @@ code {
 
 .workflow-step-description {
   margin: 0.5rem 0;
-  color: var(--text-light);
+  color: var(--text);
   font-size: 0.875rem;
 }
 
@@ -698,7 +737,7 @@ code {
 
 .workflow-step-list li {
   margin: 0.25rem 0;
-  color: var(--text-light);
+  color: var(--text);
   font-size: 0.875rem;
 }
 
