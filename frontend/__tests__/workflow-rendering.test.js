@@ -1,9 +1,7 @@
 /**
- * Unit tests for workflow rendering functionality
- * (Jest + jsdom)
+ * Unit tests for workflow rendering functionality (Jest + jsdom)
+ * Uses Jest's global describe/it/expect/jest.
  */
-
-const { describe, it, expect, beforeEach, jest } = require("@jest/globals");
 
 // Mock DOM environment
 document.body.innerHTML = `

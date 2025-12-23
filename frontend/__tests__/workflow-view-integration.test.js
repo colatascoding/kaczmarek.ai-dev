@@ -1,9 +1,7 @@
 /**
- * Integration test for workflow view rendering
- * Tests the actual DOM rendering of workflow details (Jest + jsdom)
+ * Integration test for workflow view rendering (Jest + jsdom)
+ * Uses Jest's global describe/it/expect/jest.
  */
-
-const { describe, it, expect, beforeEach, jest } = require("@jest/globals");
 
 // Setup DOM
 document.body.innerHTML = `
