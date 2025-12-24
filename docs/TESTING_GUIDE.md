@@ -411,6 +411,333 @@ Task <task-id> completed successfully.
 Progress and review files updated.
 ```
 
+## Jest Unit and Integration Tests
+
+### Overview
+
+The project uses Jest for automated testing with jsdom for DOM testing. Tests are organized into:
+- **Unit tests**: Test individual modules and functions in isolation
+- **Integration tests**: Test how multiple components work together
+
+### Test Setup
+
+Install test dependencies:
+```bash
+npm install --save-dev jest jsdom
+```
+
+Configuration in `package.json`:
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "lib/**/*.js",
+      "frontend/**/*.js",
+      "!**/__tests__/**"
+    ]
+  }
+}
+```
+
+### Unit Test Patterns
+
+#### Pattern 1: Workflow Engine Testing
+
+Test file: `lib/__tests__/workflow-engine.test.js`
+
+```javascript
+const WorkflowEngine = require("../workflow/engine");
+const WorkflowDatabase = require("../db/database");
+const ModuleLoader = require("../modules/module-loader");
+
+describe("WorkflowEngine", () => {
+  let engine, db, testDbPath, cwd;
+
+  beforeEach(() => {
+    // Setup test environment
+    cwd = path.join(__dirname, "../../test-temp");
+    fs.mkdirSync(cwd, { recursive: true });
+    
+    testDbPath = path.join(cwd, ".kaczmarek-ai", "test-workflows.db");
+    fs.mkdirSync(path.dirname(testDbPath), { recursive: true });
+    
+    // Create test database
+    db = new WorkflowDatabase(testDbPath);
+    const loader = new ModuleLoader(path.resolve(__dirname, "..", "modules"));
+    engine = new WorkflowEngine({ cwd, db, moduleLoader: loader });
+  });
+
+  afterEach(() => {
+    // Cleanup test files and database
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    if (fs.existsSync(cwd)) fs.rmSync(cwd, { recursive: true, force: true });
+  });
+
+  test("resolves template variables", () => {
+    const state = {
+      trigger: { param: "value" },
+      steps: { step1: { outputs: { result: "success" } } }
+    };
+    
+    expect(engine.resolveValue("{{ trigger.param }}", state)).toBe("value");
+    expect(engine.resolveValue("{{ steps.step1.outputs.result }}", state)).toBe("success");
+  });
+});
+```
+
+**Key patterns:**
+- Use `beforeEach`/`afterEach` for test isolation
+- Create temporary directories for test data
+- Clean up all test artifacts after each test
+- Test both success and failure cases
+
+#### Pattern 2: Outcome Determination Testing
+
+Test file: `lib/__tests__/outcome-determination.test.js`
+
+```javascript
+const { createTestEngine, cleanupTest } = require("./helpers/workflow-engine-setup");
+
+describe("Outcome Determination", () => {
+  let engine;
+
+  beforeEach(() => {
+    const setup = createTestEngine();
+    engine = setup.engine;
+  });
+
+  test("should return 'no-tasks' when count === 0", () => {
+    const state = {
+      steps: {
+        "extract-tasks": {
+          status: "success",
+          outputs: { count: 0, nextSteps: [] }
+        }
+      }
+    };
+    
+    const workflow = { name: "test", steps: [] };
+    const outcome = engine.determineOutcome(state, workflow);
+    
+    expect(outcome).toBe("no-tasks");
+  });
+});
+```
+
+**Key patterns:**
+- Use test helpers to reduce boilerplate
+- Test edge cases (empty arrays, null values, missing properties)
+- Use descriptive test names that explain the scenario
+- Test all outcome types
+
+#### Pattern 3: Module Testing
+
+Test file: `lib/__tests__/module-loader.test.js`
+
+```javascript
+describe("ModuleLoader", () => {
+  test("loads modules from directory", () => {
+    const loader = new ModuleLoader("./lib/modules");
+    const modules = loader.listModules();
+    
+    expect(modules).toContain("system");
+    expect(modules).toContain("review");
+    expect(modules).toContain("implementation");
+  });
+
+  test("gets action from module", () => {
+    const loader = new ModuleLoader("./lib/modules");
+    const action = loader.getAction("system", "log");
+    
+    expect(action).toBeDefined();
+    expect(typeof action).toBe("function");
+  });
+});
+```
+
+### Integration Test Patterns
+
+#### Pattern 1: Workflow View Integration
+
+Test file: `frontend/__tests__/workflow-view-integration.test.js`
+
+```javascript
+// Setup DOM
+document.body.innerHTML = `
+  <div id="modal">
+    <div class="modal-content">
+      <div id="modal-body"></div>
+    </div>
+  </div>
+`;
+
+describe("Workflow View Integration", () => {
+  let modalBody;
+
+  beforeEach(() => {
+    modalBody = document.getElementById("modal-body");
+    modalBody.innerHTML = "";
+  });
+
+  it("workflow steps are rendered with correct structure", () => {
+    const workflow = {
+      name: "Test Workflow",
+      steps: [
+        { id: "step1", module: "system", action: "log" }
+      ]
+    };
+    
+    // Render workflow
+    modalBody.innerHTML = `
+      <div class="workflow-steps-view">
+        <div class="workflow-step-card">
+          <h4>${workflow.steps[0].id}</h4>
+          <span class="module-badge">${workflow.steps[0].module}</span>
+        </div>
+      </div>
+    `;
+    
+    const stepCard = modalBody.querySelector(".workflow-step-card");
+    expect(stepCard).not.toBeNull();
+    expect(stepCard.querySelector("h4").textContent).toBe("step1");
+  });
+});
+```
+
+**Key patterns:**
+- Set up realistic DOM structures in tests
+- Test both rendering and user interactions
+- Use `beforeEach` to reset DOM state
+- Test accessibility and visibility
+
+#### Pattern 2: API Server Integration
+
+Test file: `lib/__tests__/api-server-modules.test.js`
+
+```javascript
+describe("API Server Module Endpoints", () => {
+  test("modules endpoint returns correct structure", async () => {
+    const response = await fetch("/api/modules");
+    const data = await response.json();
+    
+    expect(data.modules).toBeDefined();
+    expect(Array.isArray(data.modules)).toBe(true);
+    expect(data.modules.length).toBeGreaterThan(0);
+  });
+});
+```
+
+### Test Helpers
+
+Create reusable test setup in `lib/__tests__/helpers/workflow-engine-setup.js`:
+
+```javascript
+const WorkflowEngine = require("../../workflow/engine");
+const WorkflowDatabase = require("../../db/database");
+const ModuleLoader = require("../../modules/module-loader");
+const path = require("path");
+const fs = require("fs");
+
+function createTestEngine() {
+  const cwd = path.join(__dirname, "../../../test-temp");
+  fs.mkdirSync(cwd, { recursive: true });
+  
+  const testDbPath = path.join(cwd, ".kaczmarek-ai", "test-workflows.db");
+  fs.mkdirSync(path.dirname(testDbPath), { recursive: true });
+  
+  if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+  
+  const db = new WorkflowDatabase(testDbPath);
+  const loader = new ModuleLoader(path.resolve(__dirname, "..", "..", "modules"));
+  const engine = new WorkflowEngine({ cwd, db, moduleLoader: loader });
+  
+  return { engine, db, testDbPath, cwd };
+}
+
+function cleanupTest(testDbPath, cwd) {
+  if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+  if (fs.existsSync(cwd)) fs.rmSync(cwd, { recursive: true, force: true });
+}
+
+module.exports = { createTestEngine, cleanupTest };
+```
+
+### Running Tests
+
+Execute all tests:
+```bash
+npm test
+```
+
+Run tests in watch mode:
+```bash
+npm run test:watch
+```
+
+Generate coverage report:
+```bash
+npm run test:coverage
+```
+
+View coverage in browser:
+```bash
+open coverage/lcov-report/index.html
+```
+
+### Test Coverage Goals
+
+Target coverage levels:
+- **Statements**: 80%+
+- **Branches**: 75%+
+- **Functions**: 80%+
+- **Lines**: 80%+
+
+Check coverage for specific files:
+```bash
+npm run test:coverage -- --collectCoverageFrom="lib/workflow/*.js"
+```
+
+### Best Practices
+
+1. **Test Isolation**: Each test should be independent and not rely on other tests
+2. **Clean Setup/Teardown**: Always clean up test artifacts in `afterEach`
+3. **Descriptive Names**: Use clear test names that describe what is being tested
+4. **Test Edge Cases**: Include tests for null, undefined, empty arrays, etc.
+5. **Mock External Dependencies**: Use Jest mocks for file system, API calls, etc.
+6. **Fast Tests**: Keep unit tests fast (< 50ms each) by avoiding real file I/O
+7. **Integration Tests**: Use integration tests to verify component interactions
+
+### Common Test Scenarios
+
+#### Testing Async Operations
+```javascript
+test("async operation completes", async () => {
+  const result = await someAsyncFunction();
+  expect(result).toBeDefined();
+});
+```
+
+#### Testing Error Handling
+```javascript
+test("handles errors gracefully", () => {
+  expect(() => functionThatThrows()).toThrow("Expected error message");
+});
+```
+
+#### Testing with Mocks
+```javascript
+const mockFn = jest.fn();
+mockFn.mockReturnValue("mocked value");
+expect(mockFn()).toBe("mocked value");
+```
+
 ## Next Steps
 
 After testing:
