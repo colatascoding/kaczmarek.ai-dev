@@ -144,6 +144,283 @@ info: (msg) => this.log(msg.replace(/^\[Executor\]\s*/, "")), // Remove duplicat
 - **Tasks Skipped**: 0
 - **Agent Processing Time**: Immediate (< 1 second)
 
+## Outcome Determination Logic
+
+### Overview
+
+The workflow execution system includes **automatic outcome determination** that classifies workflow results based on step outputs and status. This provides a standardized way to understand workflow results and suggest appropriate follow-up actions.
+
+### Outcome Types
+
+The system recognizes the following outcome types:
+
+- **`no-tasks`**: No tasks were found or extracted (e.g., review file has no uncompleted items)
+- **`all-complete`**: All tasks from the review are completed
+- **`version-created`**: A new version was successfully created
+- **`completed`**: Workflow completed successfully with no specific outcome indicators
+- **`failed`**: Workflow encountered an error or failure
+- **`unknown`**: Unable to determine outcome (e.g., no steps executed)
+
+### Determination Algorithm
+
+Location: `lib/workflow/outcome.js`
+
+The outcome determination logic follows this algorithm:
+
+```javascript
+determineOutcome(state, workflow) {
+  // 1. Get the last executed step
+  const lastStepId = Object.keys(state.steps).pop();
+  const lastStep = state.steps[lastStepId];
+  
+  if (!lastStep) {
+    return "unknown";
+  }
+  
+  // 2. Check last step outputs for outcome indicators
+  if (lastStep.outputs) {
+    // No tasks found (count is 0 or empty nextSteps array)
+    if (lastStep.outputs.count === 0 || 
+        lastStep.outputs.nextStepsCount === 0 ||
+        (lastStep.outputs.nextSteps && lastStep.outputs.nextSteps.length === 0)) {
+      return "no-tasks";
+    }
+    
+    // All tasks completed
+    if (lastStep.outputs.allComplete === true) {
+      return "all-complete";
+    }
+    
+    // Version was created
+    if (lastStep.outputs.versionTag) {
+      return "version-created";
+    }
+  }
+  
+  // 3. Check step ID for special patterns
+  if (lastStepId === "no-tasks") {
+    return "no-tasks";
+  }
+  
+  if (lastStepId === "check-all-complete") {
+    return lastStep.outputs?.allComplete === true ? "all-complete" : "no-tasks";
+  }
+  
+  if (lastStepId === "create-next-version") {
+    return "version-created";
+  }
+  
+  // 4. Check step status
+  if (lastStep.status === "failure") {
+    return "failed";
+  }
+  
+  // 5. Scan all steps for outcome indicators
+  for (const [stepId, step] of Object.entries(state.steps)) {
+    if (step.outputs?.count === 0) {
+      return "no-tasks";
+    }
+    if (step.outputs?.allComplete === true) {
+      return "all-complete";
+    }
+  }
+  
+  // 6. Default to completed
+  return "completed";
+}
+```
+
+### How Outcomes Are Used
+
+#### 1. Stored in Database
+
+Outcomes are automatically calculated and stored when a workflow completes:
+
+```javascript
+// In lib/workflow/executor.js
+const outcome = engine.outcomeHandler.determineOutcome(state, workflow);
+engine.db.updateExecutionOutcome(executionId, outcome);
+```
+
+#### 2. Follow-up Suggestions
+
+Outcomes drive context-aware follow-up suggestions:
+
+```javascript
+// In lib/workflow/outcome.js
+getFollowUpSuggestions(outcome, workflow) {
+  switch (outcome) {
+    case "no-tasks":
+      return [{
+        workflowId: "review-self",
+        name: "Review Self",
+        description: "Run a new review to identify new tasks",
+        reason: "No tasks found - run a review to identify new work"
+      }];
+      
+    case "all-complete":
+      return [{
+        workflowId: "review-self",
+        name: "Review Self",
+        description: "Start a new review cycle",
+        reason: "All tasks completed - start a new review"
+      }];
+      
+    case "version-created":
+      return [{
+        workflowId: "execute-features",
+        name: "Execute Features",
+        description: "Implement features from the new version",
+        reason: "New version created - implement features from it"
+      }];
+  }
+}
+```
+
+#### 3. Execution Summaries
+
+Outcomes are included in automatically generated execution summaries:
+
+```javascript
+generateExecutionSummary(executionId, workflow, state, outcome, followUpSuggestions) {
+  let summary = `# Execution Summary: ${executionId}\n\n`;
+  summary += `## Basic Information\n`;
+  summary += `- **Execution ID:** ${executionId}\n`;
+  summary += `- **Status:** ${state.status || "completed"}\n`;
+  summary += `- **Outcome:** ${outcome}\n`;
+  // ... more summary content
+  
+  if (followUpSuggestions.length > 0) {
+    summary += `\n## Follow-up Suggestions\n\n`;
+    followUpSuggestions.forEach(suggestion => {
+      summary += `### ${suggestion.name}\n`;
+      summary += `- **Workflow:** ${suggestion.workflowId}\n`;
+      summary += `- **Reason:** ${suggestion.reason}\n\n`;
+    });
+  }
+  
+  return summary;
+}
+```
+
+### Testing Outcome Determination
+
+Location: `lib/__tests__/outcome-determination.test.js`
+
+The outcome determination logic is thoroughly tested with unit tests:
+
+```javascript
+describe("Outcome Determination", () => {
+  test("should return 'no-tasks' when count === 0", () => {
+    const state = {
+      steps: {
+        "extract-tasks": {
+          status: "success",
+          outputs: { count: 0 }
+        }
+      }
+    };
+    expect(engine.determineOutcome(state, workflow)).toBe("no-tasks");
+  });
+
+  test("should return 'all-complete' when allComplete === true", () => {
+    const state = {
+      steps: {
+        "check-complete": {
+          status: "success",
+          outputs: { allComplete: true }
+        }
+      }
+    };
+    expect(engine.determineOutcome(state, workflow)).toBe("all-complete");
+  });
+
+  test("should return 'version-created' when versionTag exists", () => {
+    const state = {
+      steps: {
+        "create-version": {
+          status: "success",
+          outputs: { versionTag: "version0-3" }
+        }
+      }
+    };
+    expect(engine.determineOutcome(state, workflow)).toBe("version-created");
+  });
+
+  test("should return 'failed' when step status is failure", () => {
+    const state = {
+      steps: {
+        "some-step": {
+          status: "failure",
+          error: "Something went wrong"
+        }
+      }
+    };
+    expect(engine.determineOutcome(state, workflow)).toBe("failed");
+  });
+});
+```
+
+### Retroactive Outcome Recalculation
+
+The system includes an API endpoint to recalculate outcomes for historical executions:
+
+```javascript
+// POST /api/executions/recalculate-outcomes
+app.post("/api/executions/recalculate-outcomes", (req, res) => {
+  const executions = server.db.getAllExecutions();
+  let recalculated = 0;
+  
+  executions.forEach(execution => {
+    // Load workflow and reconstruct state
+    const workflowDef = server.engine.workflowManager.getWorkflow(execution.workflow_id);
+    const stepExecutions = server.db.getStepExecutions(execution.id);
+    
+    // Reconstruct state from step executions
+    const state = reconstructState(stepExecutions);
+    
+    // Determine outcome
+    const outcome = server.engine.determineOutcome(state, workflowDef);
+    
+    // Update if different
+    if (outcome !== execution.outcome) {
+      server.db.updateExecutionOutcome(execution.id, outcome);
+      recalculated++;
+    }
+  });
+  
+  res.json({ success: true, recalculated });
+});
+```
+
+### Custom Follow-up Workflows
+
+Workflows can define custom follow-up suggestions in their YAML:
+
+```yaml
+name: "Review Self"
+description: "Review repository and suggest next steps"
+
+followUpWorkflows:
+  - workflowId: "execute-features"
+    name: "Execute Features"
+    onOutcome: ["no-tasks", "completed"]
+    reason: "Tasks identified - implement them"
+    
+  - workflowId: "create-next-version"
+    name: "Create Next Version"
+    onOutcome: "all-complete"
+    reason: "All tasks complete - start new version"
+```
+
+### Best Practices
+
+1. **Step Outputs**: Design step actions to output clear outcome indicators (`count`, `allComplete`, `versionTag`)
+2. **Step IDs**: Use descriptive step IDs that indicate their purpose (`no-tasks`, `check-all-complete`)
+3. **Status Codes**: Return appropriate status codes from step actions (0 = success, >0 = failure)
+4. **Testing**: Always test outcome determination logic with various state inputs
+5. **Follow-ups**: Define workflow-specific follow-up suggestions when default behavior isn't appropriate
+
 ## Conclusion
 
 The workflow executed successfully end-to-end. The main issues are:
@@ -152,5 +429,7 @@ The workflow executed successfully end-to-end. The main issues are:
 3. Task execution semantics - needs clearer status tracking
 
 Overall, the system is working as designed. The meta-task issue is expected when working with a newly created empty version.
+
+The outcome determination and follow-up suggestion system provides intelligent, context-aware guidance for continuing development workflows.
 
 
