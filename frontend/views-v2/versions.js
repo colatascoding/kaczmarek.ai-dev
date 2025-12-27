@@ -227,9 +227,53 @@ async function loadStageContent(versionTag, stage) {
  * Render plan stage
  */
 async function renderPlanStage(versionTag, container) {
+  // Load stage summary
+  let summary = null;
+  try {
+    const summaryData = await window.apiCall(`/api/versions/${versionTag}/plan/summary`);
+    summary = summaryData.summary;
+  } catch (error) {
+    console.error("Failed to load plan summary:", error);
+  }
+  
   container.innerHTML = `
     <div class="stage-wizard-content">
       <h3>Planning Stage</h3>
+      
+      ${summary ? `
+        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: var(--primary);">Current Plan Status</h4>
+            <span class="status-badge ${summary.status}">${summary.status}</span>
+          </div>
+          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
+          ${summary.progress > 0 ? `
+            <div style="margin-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
+                <span>Progress</span>
+                <span>${summary.progress}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${summary.progress}%"></div>
+              </div>
+            </div>
+          ` : ""}
+          ${summary.details?.goals && summary.details.goals.length > 0 ? `
+            <div style="margin-top: 1rem;">
+              <strong style="font-size: 0.875rem;">Goals:</strong>
+              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem;">
+                ${summary.details.goals.slice(0, 5).map(g => `
+                  <li style="margin-bottom: 0.25rem;">
+                    ${g.completed ? "✓" : "○"} ${g.text}
+                  </li>
+                `).join("")}
+                ${summary.details.goals.length > 5 ? `<li style="color: var(--text-light);">... and ${summary.details.goals.length - 5} more</li>` : ""}
+              </ul>
+            </div>
+          ` : ""}
+        </div>
+      ` : ""}
+      
       <p style="color: var(--text-light); margin-bottom: 1.5rem;">Define goals and scope for this version</p>
       
       <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">
@@ -246,13 +290,33 @@ async function renderPlanStage(versionTag, container) {
   `;
   
   // Load existing goals
-  // TODO: Load from version files
+  if (summary?.details?.goals) {
+    const goalsList = document.getElementById("plan-goals-list");
+    if (goalsList) {
+      goalsList.innerHTML = summary.details.goals.map((goal, index) => `
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <input type="text" value="${goal.text}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+                 onchange="updatePlanGoal(${index}, this.value)">
+          <button class="btn btn-sm" onclick="removePlanGoal(${index})">Remove</button>
+        </div>
+      `).join("");
+    }
+  }
 }
 
 /**
  * Render implement stage
  */
 async function renderImplementStage(versionTag, container) {
+  // Load stage summary
+  let summary = null;
+  try {
+    const summaryData = await window.apiCall(`/api/versions/${versionTag}/implement/summary`);
+    summary = summaryData.summary;
+  } catch (error) {
+    console.error("Failed to load implement summary:", error);
+  }
+  
   // Load workstreams
   const workstreamsData = await window.apiCall(`/api/workstreams?versionTag=${versionTag}`).catch(() => ({ workstreams: [] }));
   const workstreams = workstreamsData.workstreams || [];
@@ -260,6 +324,36 @@ async function renderImplementStage(versionTag, container) {
   container.innerHTML = `
     <div class="stage-wizard-content">
       <h3>Implementation Stage</h3>
+      
+      ${summary ? `
+        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: var(--primary);">Current Implementation Status</h4>
+            <span class="status-badge ${summary.status}">${summary.status}</span>
+          </div>
+          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
+          ${summary.progress > 0 ? `
+            <div style="margin-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
+                <span>Progress</span>
+                <span>${summary.progress}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${summary.progress}%"></div>
+              </div>
+            </div>
+          ` : ""}
+          ${summary.details?.recentActivity && summary.details.recentActivity.length > 0 ? `
+            <div style="margin-top: 1rem;">
+              <strong style="font-size: 0.875rem;">Recent Activity:</strong>
+              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem; color: var(--text-light);">
+                ${summary.details.recentActivity.map(activity => `<li style="margin-bottom: 0.25rem;">${activity}</li>`).join("")}
+              </ul>
+            </div>
+          ` : ""}
+        </div>
+      ` : ""}
+      
       <p style="color: var(--text-light); margin-bottom: 1.5rem;">Manage implementation tasks and workstreams</p>
       
       <div style="margin-bottom: 1.5rem;">
@@ -297,9 +391,49 @@ async function renderImplementStage(versionTag, container) {
  * Render test stage
  */
 async function renderTestStage(versionTag, container) {
+  // Load stage summary
+  let summary = null;
+  try {
+    const summaryData = await window.apiCall(`/api/versions/${versionTag}/test/summary`);
+    summary = summaryData.summary;
+  } catch (error) {
+    console.error("Failed to load test summary:", error);
+  }
+  
   container.innerHTML = `
     <div class="stage-wizard-content">
       <h3>Testing Stage</h3>
+      
+      ${summary ? `
+        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: var(--primary);">Current Test Status</h4>
+            <span class="status-badge ${summary.status}">${summary.status}</span>
+          </div>
+          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
+          ${summary.progress > 0 ? `
+            <div style="margin-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
+                <span>Test Progress</span>
+                <span>${summary.progress}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${summary.progress}%"></div>
+              </div>
+            </div>
+          ` : ""}
+          ${summary.details?.testCases && summary.details.testCases.length > 0 ? `
+            <div style="margin-top: 1rem;">
+              <strong style="font-size: 0.875rem;">Test Results:</strong>
+              <div style="margin-top: 0.5rem; font-size: 0.875rem;">
+                <span style="color: var(--success);">✓ ${summary.details.passedTests} passed</span>
+                ${summary.details.failedTests > 0 ? `<span style="color: var(--error); margin-left: 1rem;">✗ ${summary.details.failedTests} failed</span>` : ""}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      ` : ""}
+      
       <p style="color: var(--text-light); margin-bottom: 1.5rem;">Run and review tests for this version</p>
       
       <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">
@@ -322,9 +456,56 @@ async function renderTestStage(versionTag, container) {
  * Render review stage
  */
 async function renderReviewStage(versionTag, container) {
+  // Load stage summary
+  let summary = null;
+  try {
+    const summaryData = await window.apiCall(`/api/versions/${versionTag}/review/summary`);
+    summary = summaryData.summary;
+  } catch (error) {
+    console.error("Failed to load review summary:", error);
+  }
+  
   container.innerHTML = `
     <div class="stage-wizard-content">
       <h3>Review Stage</h3>
+      
+      ${summary ? `
+        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: var(--primary);">Current Review Status</h4>
+            <span class="status-badge ${summary.status}">${summary.status}</span>
+          </div>
+          ${summary.details?.summary ? `
+            <p style="margin: 0.5rem 0; color: var(--text); font-style: italic;">${summary.details.summary}</p>
+          ` : ""}
+          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
+          ${summary.progress > 0 ? `
+            <div style="margin-top: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
+                <span>Completion Progress</span>
+                <span>${summary.progress}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${summary.progress}%"></div>
+              </div>
+            </div>
+          ` : ""}
+          ${summary.details?.nextSteps && summary.details.nextSteps.length > 0 ? `
+            <div style="margin-top: 1rem;">
+              <strong style="font-size: 0.875rem;">Next Steps:</strong>
+              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem;">
+                ${summary.details.nextSteps.slice(0, 5).map(step => `
+                  <li style="margin-bottom: 0.25rem;">
+                    ${step.completed ? "✓" : "○"} ${step.text}
+                  </li>
+                `).join("")}
+                ${summary.details.nextSteps.length > 5 ? `<li style="color: var(--text-light);">... and ${summary.details.nextSteps.length - 5} more</li>` : ""}
+              </ul>
+            </div>
+          ` : ""}
+        </div>
+      ` : ""}
+      
       <p style="color: var(--text-light); margin-bottom: 1.5rem;">Review and finalize this version</p>
       
       <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">

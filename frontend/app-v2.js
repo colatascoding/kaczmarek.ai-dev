@@ -57,7 +57,7 @@ function switchView(viewName) {
       if (window.loadVersionsV2) window.loadVersionsV2();
       break;
     case "workflows":
-      if (window.loadWorkflows) window.loadWorkflows();
+      if (window.loadWorkflowsV2) window.loadWorkflowsV2();
       break;
     case "library":
       if (window.loadLibraryV2) window.loadLibraryV2();

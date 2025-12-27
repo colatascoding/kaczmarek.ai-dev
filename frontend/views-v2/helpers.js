@@ -169,6 +169,26 @@ function addPlanGoal() {
 }
 
 /**
+ * Update plan goal
+ */
+function updatePlanGoal(index, value) {
+  // TODO: Save to version file
+  console.log(`Update goal ${index}: ${value}`);
+}
+
+/**
+ * Remove plan goal
+ */
+function removePlanGoal(index) {
+  // TODO: Remove from version file
+  console.log(`Remove goal ${index}`);
+  // Reload plan stage
+  if (window.loadStageContent && window.currentVersion) {
+    window.loadStageContent(window.currentVersion, "plan");
+  }
+}
+
+/**
  * Run review workflow
  */
 async function runReviewWorkflow() {
@@ -191,5 +211,7 @@ window.markStageComplete = markStageComplete;
 window.createNextVersion = createNextVersion;
 window.savePlanStage = savePlanStage;
 window.addPlanGoal = addPlanGoal;
+window.updatePlanGoal = updatePlanGoal;
+window.removePlanGoal = removePlanGoal;
 window.runReviewWorkflow = runReviewWorkflow;
 
