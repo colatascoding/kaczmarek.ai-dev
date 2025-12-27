@@ -350,7 +350,7 @@ async function renderPlanStage(versionTag, container) {
           ` : ""}
           ${agentStatus.cloudAgentId ? `
             <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
-              Agent ID: <a href="https://cursor.com/dashboard/agents/${agentStatus.cloudAgentId}" target="_blank" style="color: var(--primary);">${agentStatus.cloudAgentId.substring(0, 8)}...</a>
+              Agent ID: <a href="https://cursor.com/agents/${agentStatus.cloudAgentId}" target="_blank" style="color: var(--primary);">${agentStatus.cloudAgentId.substring(0, 8)}...</a>
             </p>
           ` : ""}
         </div>
@@ -731,6 +731,21 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
       if (agentData.hasAgent) {
         const agent = agentData.agent;
         
+        // Always refresh plan stage if we're viewing it to show real-time sync status
+        const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+        if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
+          const stageContent = document.getElementById("stage-content");
+          if (stageContent && document.querySelector(".stage-nav-btn[data-stage='plan']")?.classList.contains("active")) {
+            // Use the renderer from versions-stage-renderers.js which has sync history
+            if (window.renderPlanStage) {
+              await window.renderPlanStage(versionTag, stageContent);
+            } else {
+              // Fallback to local renderPlanStage
+              await renderPlanStage(versionTag, stageContent);
+            }
+          }
+        }
+        
         // Stop polling if agent completed or failed
         if (agent.status === "completed" || agent.status === "failed") {
           stopPlanningAgentPolling(versionTag);
@@ -740,15 +755,6 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
             window.showNotification(`Planning agent completed for version ${versionTag}. Goals have been generated.`, "success");
           } else {
             window.showNotification(`Planning agent failed for version ${versionTag}: ${agent.error || "Unknown error"}`, "error");
-          }
-          
-          // Refresh plan stage if we're viewing it
-          const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
-          if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
-            const stageContent = document.getElementById("stage-content");
-            if (stageContent && document.querySelector(".stage-nav-btn[data-stage='plan']")?.classList.contains("active")) {
-              await renderPlanStage(versionTag, stageContent);
-            }
           }
           
           // Refresh versions list

@@ -2,6 +2,9 @@
  * Stage renderers for versions view
  */
 
+// Expose renderPlanStage globally for polling refresh
+window.renderPlanStage = renderPlanStage;
+
 /**
  * Render plan stage
  */
@@ -20,6 +23,10 @@ async function renderPlanStage(versionTag, container) {
     let agentStatus = null;
     if (agentResult.status === "fulfilled" && agentResult.value.hasAgent) {
       agentStatus = agentResult.value.agent;
+      // Start polling if agent is still running
+      if (agentStatus && (agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing") && window.startPlanningAgentPolling) {
+        window.startPlanningAgentPolling(versionTag, agentStatus.id);
+      }
     }
     
     const goals = details.goals || [];

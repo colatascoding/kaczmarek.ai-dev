@@ -133,7 +133,7 @@ Get your API key from: https://cursor.com/dashboard
     console.log(`\nMonitor status with:`);
     console.log(`  kad agent status ${result.agentId}`);
     console.log(`\nOr check the dashboard:`);
-    console.log(`  https://cursor.com/dashboard/agents/${result.agentId}\n`);
+    console.log(`  https://cursor.com/agents/${result.agentId}\n`);
 
     // Also test getting status
     console.log(`\n📊 Fetching initial status...\n`);

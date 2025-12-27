@@ -186,11 +186,28 @@ async function showExecutionDetailsV2(executionId) {
     const agentsData = await window.apiCall("/api/agents").catch(() => ({ agents: [] }));
     const execAgents = (agentsData.agents || []).filter(a => a.executionId === executionId);
 
-    const modal = document.getElementById("modal");
-    const modalTitle = document.getElementById("modal-title");
-    const modalBody = document.getElementById("modal-body");
+    // Create or get modal
+    let modal = document.getElementById("modal-v2");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modal-v2";
+      modal.className = "modal-v2";
+      modal.innerHTML = `
+        <div class="modal-content-v2" style="max-width: 800px;">
+          <div class="modal-header-v2">
+            <h3 id="modal-title-v2"></h3>
+            <button class="modal-close" onclick="closeModalV2()">&times;</button>
+          </div>
+          <div class="modal-body-v2" id="modal-body-v2"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
 
-    if (!modal || !modalTitle || !modalBody) {
+    const modalTitle = document.getElementById("modal-title-v2");
+    const modalBody = document.getElementById("modal-body-v2");
+
+    if (!modalTitle || !modalBody) {
       console.error("Modal elements not found");
       return;
     }
@@ -358,7 +375,7 @@ async function showAgentDetailsV2(agentId) {
           ${agent.executionId ? `
             <div>
               <strong>Execution:</strong><br>
-              <a href="#" onclick="event.preventDefault(); showExecutionDetailsV2('${agent.executionId}'); closeModal();" style="color: var(--primary); text-decoration: underline;">
+              <a href="#" onclick="event.preventDefault(); closeModalV2(); setTimeout(() => { switchView('executions'); setTimeout(() => showExecutionDetailsV2('${agent.executionId}'), 100); }, 100);" style="color: var(--primary); text-decoration: underline;">
                 ${agent.executionId.substring(0, 16)}...
               </a>
             </div>
@@ -488,6 +505,16 @@ async function copyExecutionSummaryV2(executionId) {
   } catch (error) {
     console.error("Failed to copy summary:", error);
     window.showNotification(`Failed to copy summary: ${error.message}`, "error");
+  }
+}
+
+/**
+ * Close modal
+ */
+function closeModalV2() {
+  const modal = document.getElementById("modal-v2");
+  if (modal) {
+    modal.style.display = "none";
   }
 }
 
