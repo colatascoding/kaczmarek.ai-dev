@@ -13,4 +13,14 @@
 
 ## Goals
 
+Version 0-10 focuses on **stabilization, completion, and systematic planning improvements**. Key objectives include:
+
+1. **Planning Agent Infrastructure Completion** - Complete and test AI planning agent integration
+2. **Version Management System Stabilization** - Ensure reliable version lifecycle execution  
+3. **Workflow Engine Reliability** - Test and stabilize all library workflows
+4. **Frontend Dashboard Polish** - Complete frontend v2 migration and improve UX
+5. **Documentation and Testing** - Create comprehensive guides and improve test coverage
+
+See [Planning](./01_plan/goals.md) for detailed objectives and success criteria.
+
 
