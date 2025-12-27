@@ -229,7 +229,9 @@ function showWorkstreamDetail(workstreamId) {
 }
 
 // Expose globally
-window.loadHome = loadHome;
+// Use loadHomeView to avoid conflict with app-v2.js's loadHome
+window.loadHomeView = loadHome;
+window.loadHome = loadHome; // Keep for backward compatibility but prefer loadHomeView
 window.refreshHome = refreshHome;
 window.showExecutionDetails = showExecutionDetails;
 window.loadWorkstreams = loadWorkstreams;

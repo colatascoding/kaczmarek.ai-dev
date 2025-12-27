@@ -9,7 +9,9 @@ let currentLibraryTab = "workflows";
  * Load library view
  */
 async function loadLibraryV2() {
-  switchLibraryTab("workflows");
+  if (window.switchLibraryTab) {
+    window.switchLibraryTab("workflows");
+  }
 }
 
 /**

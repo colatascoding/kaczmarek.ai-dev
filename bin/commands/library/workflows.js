@@ -55,8 +55,8 @@ function cmdLibraryWorkflows(argv) {
 }
 
 function handleList(argv) {
-  const config = loadConfig(process.cwd());
-  const libraryDir = config?.library?.libraryDir || "library";
+  // const config = loadConfig(process.cwd()); // Not used yet
+  // const libraryDir = config?.library?.libraryDir || "library"; // Not used yet
   
   // Parse options
   let category = null;
@@ -215,7 +215,7 @@ function handleCopy(argv) {
 
   const workflowId = argv[0];
   const config = loadConfig(process.cwd());
-  const libraryDir = config?.library?.libraryDir || "library";
+  // const libraryDir = config?.library?.libraryDir || "library"; // Not used yet
   const workflowsDir = config?.workflows?.activeDir || "workflows";
   
   // Parse options

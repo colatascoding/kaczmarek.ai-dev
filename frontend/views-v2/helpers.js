@@ -41,8 +41,9 @@ async function consolidateWorkstreams(versionTag) {
       window.showNotification(`Consolidated ${data.workstreamCount || 0} workstream(s)`, "success");
       
       // Refresh implement stage
-      if (window.loadStageContent && currentVersion) {
-        await window.loadStageContent(currentVersion, "implement");
+      const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+      if (window.loadStageContent && currentVersionTag) {
+        await window.loadStageContent(currentVersionTag, "implement");
       }
     } else {
       window.showNotification(data.message || "Consolidation completed", "info");

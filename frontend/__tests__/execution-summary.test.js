@@ -197,10 +197,10 @@ describe("Execution Summary Copy", () => {
         expect(duration).toBeGreaterThan(0);
         expect(Math.round(duration / 1000)).toBe(330); // 5 minutes 30 seconds
       } else {
-        fail("Dates should be valid");
+        throw new Error("Dates should be valid");
       }
     } catch (e) {
-      fail("Should not throw error for valid dates");
+      throw new Error("Should not throw error for valid dates");
     }
   });
 
@@ -211,9 +211,8 @@ describe("Execution Summary Copy", () => {
       const startDate = new Date(exec.startedAt);
       const endDate = new Date(exec.completedAt);
       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-        const duration = endDate - startDate;
         // Should not reach here
-        fail("Should not calculate duration for invalid dates");
+        throw new Error("Should not calculate duration for invalid dates");
       } else {
         // This is expected - duration should be skipped
         expect(true).toBe(true);

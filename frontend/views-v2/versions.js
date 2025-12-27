@@ -152,12 +152,13 @@ function renderVersionStageProgress(version) {
  */
 async function loadVersionDetail(versionTag) {
   try {
+    const cleanTag = versionTag.replace(/^version/, "");
     const [versionData, stagesData] = await Promise.all([
       window.apiCall(`/api/versions`).then(data => {
-        const version = (data.versions || []).find(v => v.tag === versionTag);
+        const version = (data.versions || []).find(v => v.tag === cleanTag);
         return version || null;
       }),
-      window.loadVersionStages(versionTag)
+      window.loadVersionStages(cleanTag)
     ]);
     
     if (!versionData) {
@@ -206,10 +207,14 @@ async function loadVersionDetail(versionTag) {
     const initialStage = stagesData?.find(s => s.status === "in-progress") || stagesData?.[0];
     if (initialStage) {
       const stageName = initialStage.name.replace(/^\d+_/, "");
-      showStage(stageName);
+      if (window.showStage) {
+        window.showStage(stageName);
+      }
     } else {
       // Default to implement stage
-      showStage("implement");
+      if (window.showStage) {
+        window.showStage("implement");
+      }
     }
   } catch (error) {
     console.error("Failed to load version detail:", error);
@@ -287,7 +292,10 @@ async function renderPlanStage(versionTag, container) {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/plan/summary`);
     summary = summaryData.summary;
   } catch (error) {
-    console.error("Failed to load plan summary:", error);
+    // 404 is expected if stage doesn't exist yet, don't log as error
+    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
+      console.error("Failed to load plan summary:", error);
+    }
   }
   
   // Check for planning agent status
@@ -413,16 +421,6 @@ async function renderPlanStage(versionTag, container) {
 }
 
 /**
- * Refresh plan stage (reloads content and agent status)
- */
-async function refreshPlanStage(versionTag) {
-  const container = document.getElementById("stage-content");
-  if (container) {
-    await renderPlanStage(versionTag, container);
-  }
-}
-
-/**
  * Render implement stage
  */
 async function renderImplementStage(versionTag, container) {
@@ -432,7 +430,10 @@ async function renderImplementStage(versionTag, container) {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/implement/summary`);
     summary = summaryData.summary;
   } catch (error) {
-    console.error("Failed to load implement summary:", error);
+    // 404 is expected if stage doesn't exist yet, don't log as error
+    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
+      console.error("Failed to load implement summary:", error);
+    }
   }
   
   // Load workstreams
@@ -515,7 +516,10 @@ async function renderTestStage(versionTag, container) {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/test/summary`);
     summary = summaryData.summary;
   } catch (error) {
-    console.error("Failed to load test summary:", error);
+    // 404 is expected if stage doesn't exist yet, don't log as error
+    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
+      console.error("Failed to load test summary:", error);
+    }
   }
   
   container.innerHTML = `
@@ -580,7 +584,10 @@ async function renderReviewStage(versionTag, container) {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/review/summary`);
     summary = summaryData.summary;
   } catch (error) {
-    console.error("Failed to load review summary:", error);
+    // 404 is expected if stage doesn't exist yet, don't log as error
+    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
+      console.error("Failed to load review summary:", error);
+    }
   }
   
   container.innerHTML = `
@@ -658,8 +665,9 @@ async function renderReviewStage(versionTag, container) {
  * Refresh version detail
  */
 function refreshVersionDetail() {
-  if (currentVersion) {
-    loadVersionDetail(currentVersion);
+  const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+  if (currentVersionTag) {
+    loadVersionDetail(currentVersionTag);
   }
 }
 
@@ -777,7 +785,7 @@ async function refreshPlanStage(versionTag) {
 
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
-window.showVersionDetail = showVersionDetail;
+// showVersionDetail is already defined above, just expose it
 window.loadVersionDetail = loadVersionDetail;
 window.loadVersionStages = loadVersionStages;
 window.loadStageContent = loadStageContent;

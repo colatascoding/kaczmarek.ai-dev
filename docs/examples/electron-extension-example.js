@@ -81,7 +81,7 @@ class WorkflowEditorExtension {
     });
 
     // List workflows
-    ipcMain.handle('workflow:list', async (event) => {
+    ipcMain.handle('workflow:list', async (_event) => {
       try {
         const workflows = await this.engine.listWorkflows();
         return { success: true, workflows };
@@ -91,10 +91,10 @@ class WorkflowEditorExtension {
     });
 
     // Watch for YAML file changes
-    ipcMain.handle('workflow:watch', async (event, workflowPath) => {
+    ipcMain.handle('workflow:watch', async (_event, workflowPath) => {
       // Set up file watcher
       const fs = require('fs');
-      const watcher = fs.watch(workflowPath, async (eventType) => {
+      fs.watch(workflowPath, async (eventType) => {
         if (eventType === 'change') {
           mainWindow.webContents.send('workflow:changed', workflowPath);
         }

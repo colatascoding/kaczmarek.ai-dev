@@ -81,25 +81,29 @@ function filterAndSortAgents() {
   const sortBy = document.getElementById("agent-sort")?.value || "newest";
   filtered.sort((a, b) => {
     switch (sortBy) {
-      case "newest":
+      case "newest": {
         const dateA = new Date(a.createdAt || a.startedAt || 0);
         const dateB = new Date(b.createdAt || b.startedAt || 0);
         return dateB - dateA;
+      }
       
-      case "oldest":
+      case "oldest": {
         const dateAOld = new Date(a.createdAt || a.startedAt || 0);
         const dateBOld = new Date(b.createdAt || b.startedAt || 0);
         return dateAOld - dateBOld;
+      }
       
-      case "name-asc":
+      case "name-asc": {
         const nameA = (a.name || "").toLowerCase();
         const nameB = (b.name || "").toLowerCase();
         return nameA.localeCompare(nameB);
+      }
       
-      case "name-desc":
+      case "name-desc": {
         const nameADesc = (a.name || "").toLowerCase();
         const nameBDesc = (b.name || "").toLowerCase();
         return nameBDesc.localeCompare(nameADesc);
+      }
       
       case "status":
         return (a.status || "").localeCompare(b.status || "");

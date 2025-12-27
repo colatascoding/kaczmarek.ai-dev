@@ -10,7 +10,7 @@ const { createVersionFolder, writeVersionMetadata } = require("../lib/versions/f
 const cwd = process.cwd();
 const reviewDir = path.join(cwd, "review");
 const progressDir = path.join(cwd, "progress");
-const versionsDir = path.join(cwd, "versions");
+// const versionsDir = path.join(cwd, "versions"); // Not used yet
 
 /**
  * Parse version from filename

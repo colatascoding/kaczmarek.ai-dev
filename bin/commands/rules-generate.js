@@ -56,7 +56,9 @@ function cmdRulesGenerate() {
             try {
               const pkg = JSON.parse(fs.readFileSync(fullPath, "utf8"));
               if (pkg.workspaces) packageManagers.push("workspaces");
-            } catch {}
+            } catch (_e) {
+              // Ignore parse errors
+            }
           } else if (entry.name === "yarn.lock") {
             packageManagers.push("yarn");
           } else if (entry.name === "pnpm-lock.yaml") {

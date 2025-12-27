@@ -382,7 +382,7 @@ function openWorkstreamWizard() {
     
     <div style="margin-bottom: 1rem;">
       <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Version</label>
-      <input type="text" id="workstream-version" value="${currentVersion || ""}" 
+      <input type="text" id="workstream-version" value="${window.currentVersionTag || ""}" 
              style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);">
     </div>
   `;

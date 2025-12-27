@@ -108,10 +108,12 @@ function refreshHome() {
 
 /**
  * Load home view (delegates to home.js)
+ * Note: We use a different name to avoid circular reference
  */
 async function loadHome() {
-  if (window.loadHome) {
-    await window.loadHome();
+  // Use the home.js implementation if available, otherwise use fallback
+  if (window.loadHomeView) {
+    await window.loadHomeView();
   } else {
     // Fallback implementation
     try {
