@@ -133,7 +133,8 @@ async function loadVersionDetail(versionTag) {
       return;
     }
     
-    document.getElementById("version-detail-title").textContent = `Version ${versionTag}`;
+    const displayTag = versionData?.tag || cleanTag;
+    document.getElementById("version-detail-title").textContent = `Version ${displayTag}`;
     
     // Update stage nav statuses
     if (stagesData && Array.isArray(stagesData)) {
@@ -152,6 +153,9 @@ async function loadVersionDetail(versionTag) {
     if (initialStage) {
       const stageName = initialStage.name.replace(/^\d+_/, "");
       showStage(stageName);
+    } else {
+      // Default to implement stage
+      showStage("implement");
     }
   } catch (error) {
     console.error("Failed to load version detail:", error);
@@ -164,8 +168,10 @@ async function loadVersionDetail(versionTag) {
  */
 async function loadVersionStages(versionTag) {
   try {
+    // Remove "version" prefix if present
+    const cleanTag = versionTag.replace(/^version/, "");
     const data = await window.apiCall(`/api/versions`);
-    const version = (data.versions || []).find(v => v.tag === versionTag);
+    const version = (data.versions || []).find(v => v.tag === cleanTag || v.tag === versionTag);
     return version?.stages || [];
   } catch (error) {
     console.error("Failed to load version stages:", error);
@@ -181,6 +187,9 @@ async function loadStageContent(versionTag, stage) {
   container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-light);">Loading ${stage} stage...</div>`;
   
   try {
+    // Remove "version" prefix if present
+    const cleanTag = versionTag.replace(/^version/, "");
+    
     // Map stage names
     const stageMap = {
       plan: "01_plan",
@@ -194,16 +203,16 @@ async function loadStageContent(versionTag, stage) {
     // Load stage-specific content
     switch (stage) {
       case "plan":
-        await renderPlanStage(versionTag, container);
+        await renderPlanStage(cleanTag, container);
         break;
       case "implement":
-        await renderImplementStage(versionTag, container);
+        await renderImplementStage(cleanTag, container);
         break;
       case "test":
-        await renderTestStage(versionTag, container);
+        await renderTestStage(cleanTag, container);
         break;
       case "review":
-        await renderReviewStage(versionTag, container);
+        await renderReviewStage(cleanTag, container);
         break;
       default:
         container.innerHTML = `<p>Unknown stage: ${stage}</p>`;

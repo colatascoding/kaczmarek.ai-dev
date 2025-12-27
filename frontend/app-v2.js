@@ -69,10 +69,12 @@ function switchView(viewName) {
  * Show version detail
  */
 function showVersionDetail(versionTag) {
-  currentVersion = versionTag;
+  // Remove "version" prefix if present
+  const cleanTag = versionTag.replace(/^version/, "");
+  currentVersion = cleanTag;
   switchView("version-detail");
   if (window.loadVersionDetail) {
-    window.loadVersionDetail(versionTag);
+    window.loadVersionDetail(cleanTag);
   }
 }
 
@@ -263,4 +265,5 @@ window.showVersionDetail = showVersionDetail;
 window.showStage = showStage;
 window.refreshHome = refreshHome;
 window.switchLibraryTab = switchLibraryTab;
+window.currentVersion = currentVersion;
 
