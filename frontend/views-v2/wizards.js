@@ -161,25 +161,62 @@ function renderVersionWizardStep1(container, nextBtn) {
  */
 function renderVersionWizardStep2(container, nextBtn) {
   const goals = versionWizardData.goals || [];
+  const useAI = versionWizardData.useAI !== false; // Default to true if not set
   
   container.innerHTML = `
     <div style="margin-bottom: 1.5rem;">
       <h4 style="margin: 0 0 0.5rem 0;">Step 2 of 3: Define Goals</h4>
-      <p style="color: var(--text-light); font-size: 0.875rem;">Add goals for this version</p>
+      <p style="color: var(--text-light); font-size: 0.875rem;">Choose how to generate the plan</p>
     </div>
     
-    <div id="wizard-goals-list" style="margin-bottom: 1rem;">
-      ${goals.map((goal, index) => `
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-          <input type="text" value="${goal}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
-                 onchange="versionWizardData.goals[${index}] = this.value">
-          <button class="btn btn-sm" onclick="removeWizardGoal(${index})">Remove</button>
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
+      <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
+        <input type="radio" name="planMethod" value="ai" ${useAI ? "checked" : ""} 
+               onchange="versionWizardData.useAI = true; renderVersionWizardStep();" style="margin-top: 0.25rem;">
+        <div style="flex: 1;">
+          <div style="font-weight: 500; margin-bottom: 0.25rem;">🤖 Generate Plan with AI Agent</div>
+          <div style="font-size: 0.875rem; color: var(--text-light);">
+            Launch a Cursor Cloud Agent to analyze the project and automatically generate goals and objectives for this version.
+            The agent will review recent changes, current state, and create a comprehensive plan.
+          </div>
         </div>
-      `).join("")}
-      ${goals.length === 0 ? '<p style="color: var(--text-light); font-size: 0.875rem;">No goals added yet</p>' : ""}
+      </label>
     </div>
     
-    <button class="btn btn-secondary btn-sm" onclick="addWizardGoal()">+ Add Goal</button>
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
+      <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
+        <input type="radio" name="planMethod" value="manual" ${!useAI ? "checked" : ""} 
+               onchange="versionWizardData.useAI = false; renderVersionWizardStep();" style="margin-top: 0.25rem;">
+        <div style="flex: 1;">
+          <div style="font-weight: 500; margin-bottom: 0.25rem;">✏️ Manual Entry</div>
+          <div style="font-size: 0.875rem; color: var(--text-light);">
+            Manually define goals for this version.
+          </div>
+        </div>
+      </label>
+    </div>
+    
+    ${!useAI ? `
+      <div id="wizard-goals-list" style="margin-bottom: 1rem;">
+        ${goals.map((goal, index) => `
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <input type="text" value="${goal}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+                   onchange="versionWizardData.goals[${index}] = this.value">
+            <button class="btn btn-sm" onclick="removeWizardGoal(${index})">Remove</button>
+          </div>
+        `).join("")}
+        ${goals.length === 0 ? '<p style="color: var(--text-light); font-size: 0.875rem;">No goals added yet</p>' : ""}
+      </div>
+      
+      <button class="btn btn-secondary btn-sm" onclick="addWizardGoal()">+ Add Goal</button>
+    ` : `
+      <div style="padding: 1rem; background: var(--primary-light, #e3f2fd); border-left: 4px solid var(--primary); border-radius: var(--radius);">
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text);">
+          The AI agent will analyze your project and generate a comprehensive plan after the version is created.
+          You can review and edit the generated plan in the Planning stage.
+        </p>
+      </div>
+    `}
   `;
   
   nextBtn.textContent = "Next: Review →";
@@ -255,6 +292,7 @@ function nextVersionWizardStep() {
 async function createVersionFromWizard() {
   try {
     const versionTag = `${versionWizardData.major}-${versionWizardData.minor}`;
+    const useAI = versionWizardData.useAI !== false;
     
     const data = await window.apiCall("/api/versions", {
       method: "POST",
@@ -262,14 +300,23 @@ async function createVersionFromWizard() {
         major: versionWizardData.major,
         minor: versionWizardData.minor,
         type: versionWizardData.type || "minor",
-        goals: versionWizardData.goals || []
+        goals: versionWizardData.goals || [],
+        launchPlanningAgent: useAI
       }),
       headers: {
         "Content-Type": "application/json"
       }
     });
     
-    window.showNotification(`Version ${versionTag} created successfully`, "success");
+    if (useAI && data.agentTaskId) {
+      window.showNotification(
+        `Version ${versionTag} created. Planning agent launched (ID: ${data.agentTaskId}). The agent will generate the plan in the background.`, 
+        "success"
+      );
+    } else {
+      window.showNotification(`Version ${versionTag} created successfully`, "success");
+    }
+    
     closeVersionWizard();
     
     // Refresh home and versions
