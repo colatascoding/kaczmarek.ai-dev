@@ -312,11 +312,28 @@ async function showAgentDetailsV2(agentId) {
       return;
     }
 
-    const modal = document.getElementById("modal");
-    const modalTitle = document.getElementById("modal-title");
-    const modalBody = document.getElementById("modal-body");
+    // Create or get modal
+    let modal = document.getElementById("modal-v2");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modal-v2";
+      modal.className = "modal-v2";
+      modal.innerHTML = `
+        <div class="modal-content-v2" style="max-width: 800px;">
+          <div class="modal-header-v2">
+            <h3 id="modal-title-v2"></h3>
+            <button class="modal-close" onclick="closeModalV2()">&times;</button>
+          </div>
+          <div class="modal-body-v2" id="modal-body-v2"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
 
-    if (!modal || !modalTitle || !modalBody) {
+    const modalTitle = document.getElementById("modal-title-v2");
+    const modalBody = document.getElementById("modal-body-v2");
+
+    if (!modalTitle || !modalBody) {
       console.error("Modal elements not found");
       return;
     }
@@ -408,11 +425,28 @@ async function showExecutionSummaryV2(executionId) {
       return;
     }
 
-    const modal = document.getElementById("modal");
-    const modalTitle = document.getElementById("modal-title");
-    const modalBody = document.getElementById("modal-body");
+    // Create or get modal
+    let modal = document.getElementById("modal-v2");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modal-v2";
+      modal.className = "modal-v2";
+      modal.innerHTML = `
+        <div class="modal-content-v2" style="max-width: 800px;">
+          <div class="modal-header-v2">
+            <h3 id="modal-title-v2"></h3>
+            <button class="modal-close" onclick="closeModalV2()">&times;</button>
+          </div>
+          <div class="modal-body-v2" id="modal-body-v2"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
 
-    if (!modal || !modalTitle || !modalBody) {
+    const modalTitle = document.getElementById("modal-title-v2");
+    const modalBody = document.getElementById("modal-body-v2");
+
+    if (!modalTitle || !modalBody) {
       console.error("Modal elements not found");
       return;
     }
@@ -463,4 +497,5 @@ window.showExecutionDetailsV2 = showExecutionDetailsV2;
 window.showAgentDetailsV2 = showAgentDetailsV2;
 window.showExecutionSummaryV2 = showExecutionSummaryV2;
 window.copyExecutionSummaryV2 = copyExecutionSummaryV2;
+window.closeModalV2 = closeModalV2;
 

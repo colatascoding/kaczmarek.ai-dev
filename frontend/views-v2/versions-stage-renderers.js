@@ -57,6 +57,15 @@ async function renderPlanStage(versionTag, container) {
                     ${agentStatus.executionId ? ` • <a href="#" onclick="event.preventDefault(); switchView('executions'); setTimeout(() => showExecutionDetailsV2('${agentStatus.executionId}'), 100);" style="color: var(--primary); text-decoration: underline;">View Execution</a>` : ""}
                   </p>
                 ` : ""}
+                ${agentStatus.lastSynced ? `
+                  <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                    ${agentStatus.lastSyncError ? `
+                      <span style="color: var(--error);">⚠ Last sync failed:</span> ${new Date(agentStatus.lastSynced).toLocaleString()}
+                    ` : `
+                      <span style="color: var(--success);">✓ Last synced:</span> ${new Date(agentStatus.lastSynced).toLocaleString()}
+                    `}
+                  </p>
+                ` : ""}
               </div>
               <span style="padding: 0.25rem 0.75rem; background: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success)" : "var(--error)"}; color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
                 ${agentStatus.status === "running" || agentStatus.status === "CREATING" ? "Running" : agentStatus.status === "processing" ? "Processing" : agentStatus.status === "completed" ? "Completed" : agentStatus.status === "failed" ? "Failed" : agentStatus.status || "Unknown"}
@@ -83,6 +92,41 @@ async function renderPlanStage(versionTag, container) {
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--error);">
                 Planning agent failed: ${agentStatus.error || "Unknown error"}
               </p>
+            ` : ""}
+            
+            ${agentStatus.syncHistory && agentStatus.syncHistory.length > 0 ? `
+              <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <details style="cursor: pointer;">
+                  <summary style="font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem;">
+                    Sync History (${agentStatus.syncHistory.length} entries)
+                  </summary>
+                  <div style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem; font-size: 0.75rem;">
+                    ${agentStatus.syncHistory.slice().reverse().map((sync, idx) => `
+                      <div style="padding: 0.5rem; margin-bottom: 0.5rem; background: ${sync.success ? "var(--bg-secondary)" : "var(--error-bg, #fee)"}; border-left: 3px solid ${sync.success ? (sync.changed ? "var(--primary)" : "var(--border)") : "var(--error)"}; border-radius: var(--radius-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
+                          <div>
+                            <strong>${new Date(sync.timestamp).toLocaleString()}</strong>
+                            ${sync.changed ? ` <span style="color: var(--primary); font-weight: 600;">→ Status changed</span>` : ""}
+                          </div>
+                          <span style="padding: 0.125rem 0.5rem; background: ${sync.success ? "var(--success)" : "var(--error)"}; color: white; border-radius: var(--radius-sm); font-size: 0.7rem;">
+                            ${sync.success ? "✓" : "✗"}
+                          </span>
+                        </div>
+                        <div style="color: var(--text-light);">
+                          ${sync.previousStatus && sync.status ? `
+                            Status: <code>${sync.previousStatus}</code> → <code>${sync.status}</code>
+                          ` : sync.status ? `
+                            Status: <code>${sync.status}</code>
+                          ` : ""}
+                          ${sync.error ? `
+                            <br><span style="color: var(--error);">Error: ${sync.error}</span>
+                          ` : ""}
+                        </div>
+                      </div>
+                    `).join("")}
+                  </div>
+                </details>
+              </div>
             ` : ""}
           </div>
         ` : ""}
