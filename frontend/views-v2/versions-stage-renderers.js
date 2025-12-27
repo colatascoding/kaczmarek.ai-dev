@@ -52,11 +52,39 @@ async function renderPlanStage(versionTag, container) {
         </div>
         
         ${agentStatus ? `
-          <div style="background: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary-light)" : agentStatus.status === "completed" ? "var(--success-light, #e8f5e9)" : "var(--error-bg, #fee)"}; border-left: 4px solid ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success, #4caf50)" : "var(--error)"}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          ${(() => {
+            // Normalize status for comparison (handle both lowercase and uppercase)
+            const status = (agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            const isFailed = status === "failed";
+            return { isRunning, isCompleted, isFailed, status };
+          })()}
+          <div style="background: ${(() => {
+            const status = (agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            return isRunning ? "var(--primary-light)" : isCompleted ? "var(--success-light, #e8f5e9)" : "var(--error-bg, #fee)";
+          })()}; border-left: 4px solid ${(() => {
+            const status = (agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            return isRunning ? "var(--primary)" : isCompleted ? "var(--success, #4caf50)" : "var(--error)";
+          })()}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
               <div>
-                <h4 style="margin: 0; color: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success)" : "var(--error)"};">
-                  ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "🤖 Planning Agent Running" : agentStatus.status === "completed" ? "✓ Planning Agent Completed" : "✗ Planning Agent Failed"}
+                <h4 style="margin: 0; color: ${(() => {
+            const status = (agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            return isRunning ? "var(--primary)" : isCompleted ? "var(--success)" : "var(--error)";
+          })()};">
+                  ${(() => {
+            const status = (agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            return isRunning ? "🤖 Planning Agent Running" : isCompleted ? "✓ Planning Agent Completed" : "✗ Planning Agent Failed";
+          })()}
                 </h4>
                 ${agentStatus.id ? `
                   <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
@@ -74,11 +102,22 @@ async function renderPlanStage(versionTag, container) {
                   </p>
                 ` : ""}
               </div>
-              <span style="padding: 0.25rem 0.75rem; background: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success)" : "var(--error)"}; color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
-                ${agentStatus.status === "running" || agentStatus.status === "CREATING" ? "Running" : agentStatus.status === "processing" ? "Processing" : agentStatus.status === "completed" ? "Completed" : agentStatus.status === "failed" ? "Failed" : agentStatus.status || "Unknown"}
+              <span style="padding: 0.25rem 0.75rem; background: ${(() => {
+            const status = String(agentStatus.status || "").toLowerCase();
+            const isRunning = status === "running" || status === "creating" || status === "processing";
+            const isCompleted = status === "completed";
+            return isRunning ? "var(--primary)" : isCompleted ? "var(--success)" : "var(--error)";
+          })()}; color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
+                ${(() => {
+            const status = String(agentStatus.status || "").toUpperCase();
+            return status === "RUNNING" || status === "CREATING" ? "Running" : status === "PROCESSING" ? "Processing" : status === "COMPLETED" ? "Completed" : status === "FAILED" ? "Failed" : status || "Unknown";
+          })()}
               </span>
             </div>
-            ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? `
+            ${(() => {
+            const status = String(agentStatus.status || "").toLowerCase();
+            return status === "running" || status === "creating" || status === "processing";
+          })() ? `
               <div style="margin-top: 0.5rem;">
                 <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
                   <div style="height: 100%; width: 100%; background: var(--primary); animation: pulse 2s infinite;"></div>
@@ -90,12 +129,28 @@ async function renderPlanStage(versionTag, container) {
                     View all executions →
                   </a>
                 </p>
+                ${agentStatus.autoMerge === true ? `
+                  <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <span style="font-size: 1.2rem;">🔄</span>
+                      <div>
+                        <strong style="font-size: 0.875rem; color: var(--primary);">Auto-merge enabled</strong>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                          The agent's branch will be automatically merged when planning completes.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ` : ""}
               </div>
-            ` : agentStatus.status === "completed" ? `
+            ` : (() => {
+            const status = (agentStatus.status || "").toLowerCase();
+            return status === "completed";
+          })() ? `
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
                 Planning agent has completed. Goals have been generated.
               </p>
-              ${agentStatus.autoMerge ? `
+              ${agentStatus.autoMerge === true ? `
                 <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 1.2rem;">🔄</span>
