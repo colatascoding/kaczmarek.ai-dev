@@ -15,19 +15,19 @@ async function checkAndDisplayDecisions() {
     // Find waiting executions
     const waitingExecutions = executions.filter(e => e.status === "waiting");
     
-    // Load decisions for each waiting execution
-    for (const exec of waitingExecutions) {
-      if (window.loadPendingDecisions) {
-        await window.loadPendingDecisions(exec.executionId);
-      }
+    // Batch load decisions for all waiting executions
+    if (waitingExecutions.length > 0 && window.loadPendingDecisions) {
+      await Promise.allSettled(
+        waitingExecutions.map(exec => window.loadPendingDecisions(exec.executionId))
+      );
     }
     
     // Start polling if there are waiting executions
     if (waitingExecutions.length > 0 && window.startDecisionsPolling) {
-      // Poll the first waiting execution (or all of them)
-      for (const exec of waitingExecutions) {
+      // Start polling for all waiting executions in parallel
+      waitingExecutions.forEach(exec => {
         window.startDecisionsPolling(exec.executionId);
-      }
+      });
     }
   } catch (error) {
     console.error("Failed to check for decisions:", error);
@@ -223,9 +223,70 @@ function calculateWorkstreamProgress(workstream) {
 /**
  * Show workstream detail
  */
-function showWorkstreamDetail(workstreamId) {
-  // TODO: Implement workstream detail view
-  window.showNotification("Workstream detail view coming soon", "info");
+async function showWorkstreamDetail(workstreamId) {
+  try {
+    // Get current version tag
+    const versionTag = window.currentVersion || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+    if (!versionTag) {
+      window.showNotification("No version selected", "error");
+      return;
+    }
+    
+    // Fetch workstream details
+    const data = await window.apiCall(`/api/workstreams/${versionTag}/${workstreamId}`);
+    
+    if (data.workstream) {
+      const ws = data.workstream;
+      const metadata = ws.metadata || {};
+      
+      // Create modal
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      modal.style.display = "block";
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px;">
+          <div class="modal-header">
+            <h2>Workstream: ${metadata.name || workstreamId}</h2>
+            <button class="btn btn-sm" onclick="this.closest('.modal').remove()">×</button>
+          </div>
+          <div class="modal-body">
+            <div style="margin-bottom: 1rem;">
+              <strong>Status:</strong> <span class="status-badge ${metadata.status || 'active'}">${metadata.status || 'active'}</span>
+            </div>
+            ${metadata.description ? `<div style="margin-bottom: 1rem;"><strong>Description:</strong><p>${metadata.description}</p></div>` : ""}
+            ${metadata.progress !== undefined ? `<div style="margin-bottom: 1rem;"><strong>Progress:</strong> ${metadata.progress}%</div>` : ""}
+            ${metadata.tasks && metadata.tasks.length > 0 ? `
+              <div style="margin-bottom: 1rem;">
+                <strong>Tasks:</strong>
+                <ul>
+                  ${metadata.tasks.map(t => `<li>${t.completed ? '✓' : '○'} ${t.description || t}</li>`).join("")}
+                </ul>
+              </div>
+            ` : ""}
+            ${ws.progress ? `<div style="margin-bottom: 1rem;"><strong>Progress Log:</strong><pre style="max-height: 300px; overflow: auto; background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius);">${ws.progress.substring(0, 1000)}${ws.progress.length > 1000 ? '...' : ''}</pre></div>` : ""}
+            ${metadata.createdAt ? `<div style="margin-bottom: 1rem;"><strong>Created:</strong> ${new Date(metadata.createdAt).toLocaleDateString()}</div>` : ""}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    } else {
+      window.showNotification("Workstream not found", "error");
+    }
+  } catch (error) {
+    console.error("Failed to load workstream detail:", error);
+    window.showNotification(`Failed to load workstream: ${error.message}`, "error");
+  }
 }
 
 // Expose globally

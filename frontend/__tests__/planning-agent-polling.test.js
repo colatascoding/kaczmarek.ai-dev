@@ -15,6 +15,11 @@ global.window = {
   loadVersionsV2: mockLoadVersionsV2
 };
 
+// Ensure window is available globally
+if (typeof window === "undefined") {
+  global.window = global.window || {};
+}
+
 // Mock document
 global.document = {
   getElementById: jestGlobal.fn(),
@@ -41,7 +46,17 @@ describe("Planning Agent Polling", () => {
     mockLoadVersionsV2.mockReset();
     planningAgentIntervals = new Map();
     
+    // Ensure window.apiCall is properly set
+    global.window.apiCall = mockApiCall;
+    
     // Mock the functions (simplified version)
+    stopPlanningAgentPolling = (versionTag) => {
+      if (planningAgentIntervals.has(versionTag)) {
+        clearInterval(planningAgentIntervals.get(versionTag));
+        planningAgentIntervals.delete(versionTag);
+      }
+    };
+    
     startPlanningAgentPolling = (versionTag, _agentTaskId) => {
       if (planningAgentIntervals.has(versionTag)) {
         clearInterval(planningAgentIntervals.get(versionTag));
@@ -49,6 +64,10 @@ describe("Planning Agent Polling", () => {
       
       const interval = setInterval(async () => {
         try {
+          // Ensure window.apiCall is available
+          if (!window.apiCall) {
+            window.apiCall = mockApiCall;
+          }
           const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
           
           if (agentData.hasAgent) {
@@ -72,13 +91,6 @@ describe("Planning Agent Polling", () => {
       }, 5000);
       
       planningAgentIntervals.set(versionTag, interval);
-    };
-
-    stopPlanningAgentPolling = (versionTag) => {
-      if (planningAgentIntervals.has(versionTag)) {
-        clearInterval(planningAgentIntervals.get(versionTag));
-        planningAgentIntervals.delete(versionTag);
-      }
     };
   });
 
@@ -158,11 +170,11 @@ describe("Planning Agent Polling", () => {
     startPlanningAgentPolling("0-3", "agent-123");
     expect(planningAgentIntervals.has("0-3")).toBe(true); // Should be set initially
     
-    // Simulate polling callback
-    const intervalCallback = setInterval.mock.calls[0][0];
+    // Simulate polling callback - this should call stopPlanningAgentPolling
+    const intervalCallback = setInterval.mock.calls[setInterval.mock.calls.length - 1][0];
     await intervalCallback();
     
-    // After callback, interval should be cleared
+    // After callback, interval should be cleared by stopPlanningAgentPolling
     expect(planningAgentIntervals.has("0-3")).toBe(false);
   });
 

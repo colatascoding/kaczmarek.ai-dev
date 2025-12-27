@@ -10,12 +10,35 @@ async function runTests(type) {
   try {
     window.showNotification(`Running ${type} tests...`, "info");
     
-    // TODO: Implement actual test running
-    // This would call the implementation module's run-tests action
-    // For now, just show a notification
-    setTimeout(() => {
-      window.showNotification("Test execution coming soon", "info");
-    }, 500);
+    // Call workflow to run tests
+    if (window.runWorkflow) {
+      const executionId = await window.runWorkflow("run-tests", {
+        type: type || "all"
+      });
+      
+      if (executionId) {
+        window.showNotification(`Test execution started (ID: ${executionId.substring(0, 8)}...)`, "success");
+      } else {
+        window.showNotification("Test execution failed to start", "error");
+      }
+    } else {
+      // Fallback: try direct API call
+      try {
+        const data = await window.apiCall("/api/workflows/run-tests/run", {
+          method: "POST",
+          body: JSON.stringify({ type: type || "all" }),
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        if (data.executionId) {
+          window.showNotification(`Test execution started`, "success");
+        } else {
+          window.showNotification("Test workflow not found. Please create a 'run-tests' workflow.", "info");
+        }
+      } catch (apiError) {
+        window.showNotification("Test execution not available. Please create a 'run-tests' workflow.", "info");
+      }
+    }
   } catch (error) {
     console.error("Failed to run tests:", error);
     window.showNotification(`Failed to run tests: ${error.message}`, "error");
@@ -67,17 +90,31 @@ async function markStageComplete(versionTag, stage) {
       review: "04_review"
     };
     
-    const stageFolder = stageMap[stage] || stage;
-    
-    // TODO: Call API to update stage status
-    // For now, use the stage management module directly via API
     window.showNotification(`Marking ${stage} stage as complete...`, "info");
     
-    // This would need a new API endpoint or we can use the existing stage management
-    // For now, just show notification
-    setTimeout(() => {
-      window.showNotification("Stage completion coming soon", "info");
-    }, 500);
+    try {
+      const data = await window.apiCall(`/api/versions/${versionTag}/${stage}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status: "completed" }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (data.success) {
+        window.showNotification(`Stage ${stage} marked as complete`, "success");
+        
+        // Refresh stage view
+        if (window.loadStageContent) {
+          await window.loadStageContent(versionTag, stage);
+        }
+      } else {
+        window.showNotification(data.error || "Failed to update stage status", "error");
+      }
+    } catch (error) {
+      console.error("Failed to mark stage complete:", error);
+      window.showNotification(`Failed to mark stage complete: ${error.message}`, "error");
+    }
   } catch (error) {
     console.error("Failed to mark stage complete:", error);
     window.showNotification(`Failed to mark stage complete: ${error.message}`, "error");
@@ -107,7 +144,7 @@ async function createNextVersion(currentVersionTag) {
       window.openVersionCreationWizard();
     } else {
       // Fallback: create directly
-      const data = await window.apiCall("/api/versions", {
+      await window.apiCall("/api/versions", {
         method: "POST",
         body: JSON.stringify({
           major: major,
@@ -145,8 +182,24 @@ async function savePlanStage(versionTag) {
       }
     });
     
-    // TODO: Save goals to version files
-    window.showNotification("Plan stage saved", "success");
+    const data = await window.apiCall(`/api/versions/${versionTag}/plan/goals`, {
+      method: "POST",
+      body: JSON.stringify({ goals }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (data.success) {
+      window.showNotification("Plan stage saved", "success");
+      
+      // Refresh plan stage view
+      if (window.loadStageContent) {
+        await window.loadStageContent(versionTag, "plan");
+      }
+    } else {
+      window.showNotification(data.error || "Failed to save goals", "error");
+    }
   } catch (error) {
     console.error("Failed to save plan stage:", error);
     window.showNotification(`Failed to save: ${error.message}`, "error");
@@ -172,20 +225,36 @@ function addPlanGoal() {
 /**
  * Update plan goal
  */
-function updatePlanGoal(index, value) {
-  // TODO: Save to version file
-  console.log(`Update goal ${index}: ${value}`);
+async function updatePlanGoal(index, value) {
+  // Get current version tag
+  const versionTag = window.currentVersion || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+  if (!versionTag) {
+    console.error("No version tag found");
+    return;
+  }
+  
+  // Save all goals (including the updated one)
+  await savePlanStage(versionTag);
 }
 
 /**
  * Remove plan goal
  */
-function removePlanGoal(index) {
-  // TODO: Remove from version file
-  console.log(`Remove goal ${index}`);
-  // Reload plan stage
-  if (window.loadStageContent && window.currentVersion) {
-    window.loadStageContent(window.currentVersion, "plan");
+async function removePlanGoal(index) {
+  // Get current version tag
+  const versionTag = window.currentVersion || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+  if (!versionTag) {
+    console.error("No version tag found");
+    return;
+  }
+  
+  // Remove the goal from DOM
+  const goalInputs = document.querySelectorAll("#plan-goals-list input[type='text']");
+  if (goalInputs[index]) {
+    goalInputs[index].parentElement.remove();
+    
+    // Save remaining goals
+    await savePlanStage(versionTag);
   }
 }
 

@@ -3,6 +3,8 @@
  * Stage-based version management
  */
 
+// Stage renderers are loaded from versions-stage-renderers.js
+
 /**
  * Load versions list
  */
@@ -257,7 +259,8 @@ async function loadStageContent(versionTag, stage) {
       review: "04_review"
     };
     
-    const stageFolder = stageMap[stage] || stage;
+    // stageFolder is for future use
+    // const stageFolder = stageMap[stage] || stage;
     
     // Load stage-specific content
     switch (stage) {
@@ -436,9 +439,8 @@ async function renderImplementStage(versionTag, container) {
     }
   }
   
-  // Load workstreams
-  const workstreamsData = await window.apiCall(`/api/workstreams?versionTag=${versionTag}`).catch(() => ({ workstreams: [] }));
-  const workstreams = workstreamsData.workstreams || [];
+  // Load workstreams (data used in renderImplementStage in versions-stage-renderers.js)
+  await window.apiCall(`/api/workstreams?versionTag=${versionTag}`).catch(() => ({ workstreams: [] }));
   
   container.innerHTML = `
     <div class="stage-wizard-content">
@@ -715,7 +717,7 @@ async function rejectVersion(versionTag) {
  */
 const planningAgentIntervals = new Map();
 
-function startPlanningAgentPolling(versionTag, agentTaskId) {
+function startPlanningAgentPolling(versionTag, _agentTaskId) {
   // Stop existing polling for this version if any
   if (planningAgentIntervals.has(versionTag)) {
     clearInterval(planningAgentIntervals.get(versionTag));

@@ -403,7 +403,7 @@ async function createWorkstream() {
   try {
     const name = document.getElementById("workstream-name")?.value;
     const description = document.getElementById("workstream-description")?.value;
-    const versionTag = document.getElementById("workstream-version")?.value || window.currentVersion;
+    const versionTag = document.getElementById("workstream-version")?.value || window.currentVersionTag;
     
     if (!name) {
       window.showNotification("Workstream name is required", "error");

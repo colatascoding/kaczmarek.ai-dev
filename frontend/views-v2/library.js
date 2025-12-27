@@ -3,7 +3,8 @@
  * Browse workflows, dashboards, and templates
  */
 
-let currentLibraryTab = "workflows";
+// currentLibraryTab is managed by switchLibraryTab function
+// let currentLibraryTab = "workflows";
 
 /**
  * Load library view
@@ -180,9 +181,80 @@ async function loadLibraryTemplates(container) {
 /**
  * Show workflow detail
  */
-function showWorkflowDetail(workflowId) {
-  // TODO: Implement workflow detail modal
-  window.showNotification("Workflow detail view coming soon", "info");
+async function showWorkflowDetail(workflowId) {
+  try {
+    // Fetch workflow details
+    const data = await window.apiCall(`/api/workflows/${workflowId}`);
+    
+    if (data.workflow) {
+      const wf = data.workflow;
+      
+      // Create modal
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      modal.style.display = "block";
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px;">
+          <div class="modal-header">
+            <h2>${wf.name || workflowId}</h2>
+            <button class="btn btn-sm" onclick="this.closest('.modal').remove()">×</button>
+          </div>
+          <div class="modal-body">
+            ${wf.description ? `<p style="margin-bottom: 1rem; color: var(--text-light);">${wf.description}</p>` : ""}
+            <div style="margin-bottom: 1rem;">
+              <strong>Version:</strong> ${wf.version || "N/A"} | 
+              <strong>Source:</strong> ${wf.source || "unknown"} |
+              ${wf.category ? `<strong>Category:</strong> ${wf.category}` : ""}
+            </div>
+            ${wf.steps && wf.steps.length > 0 ? `
+              <div style="margin-bottom: 1rem;">
+                <strong>Steps (${wf.steps.length}):</strong>
+                <ol style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                  ${wf.steps.map((step, idx) => `
+                    <li style="margin-bottom: 0.5rem;">
+                      <strong>${step.id || `Step ${idx + 1}`}</strong>
+                      ${step.module && step.action ? `(${step.module}.${step.action})` : ""}
+                      ${step.description ? `<br><span style="color: var(--text-light); font-size: 0.9em;">${step.description}</span>` : ""}
+                    </li>
+                  `).join("")}
+                </ol>
+              </div>
+            ` : ""}
+            ${wf.summary ? `
+              <div style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
+                <strong>Summary:</strong>
+                <div style="margin-top: 0.5rem; white-space: pre-wrap;">${wf.summary}</div>
+              </div>
+            ` : ""}
+            ${wf.executions !== undefined ? `
+              <div style="margin-bottom: 1rem;">
+                <strong>Executions:</strong> ${wf.executions} |
+                <strong>Last Run:</strong> ${wf.lastRun ? new Date(wf.lastRun).toLocaleString() : "Never"}
+              </div>
+            ` : ""}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" onclick="window.runWorkflow && window.runWorkflow('${workflowId}'); this.closest('.modal').remove();">Run Workflow</button>
+            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Close on background click
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    } else {
+      window.showNotification("Workflow not found", "error");
+    }
+  } catch (error) {
+    console.error("Failed to load workflow detail:", error);
+    window.showNotification(`Failed to load workflow: ${error.message}`, "error");
+  }
 }
 
 // Expose globally
