@@ -179,6 +179,46 @@ function renderVersionWizardStep2(container, nextBtn) {
             Launch a Cursor Cloud Agent to analyze the project and automatically generate goals and objectives for this version.
             The agent will review recent changes, current state, and create a comprehensive plan.
           </div>
+          ${useAI ? `
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <div style="margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: start; gap: 0.5rem; cursor: pointer; font-size: 0.875rem;">
+                  <input type="checkbox" ${versionWizardData.commitBeforeAgent !== false ? "checked" : ""} 
+                         onchange="versionWizardData.commitBeforeAgent = this.checked; renderVersionWizardStep();" style="margin-top: 0.125rem;">
+                  <div>
+                    <strong>Commit folder structure before agent runs</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                      Commit and push the version folder structure to git before launching the agent, so it's aware of the folder structure.
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <div style="margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: start; gap: 0.5rem; cursor: pointer; font-size: 0.875rem;">
+                  <input type="checkbox" ${versionWizardData.autoMerge === true ? "checked" : ""} 
+                         onchange="versionWizardData.autoMerge = this.checked; renderVersionWizardStep();" style="margin-top: 0.125rem;">
+                  <div>
+                    <strong>🔄 Auto-merge agent branch when complete</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                      Automatically merge the agent's branch into the current branch when planning completes.
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <div>
+                <label style="display: flex; align-items: start; gap: 0.5rem; cursor: pointer; font-size: 0.875rem;">
+                  <input type="checkbox" ${versionWizardData.skipFolderCreation === true ? "checked" : ""} 
+                         onchange="versionWizardData.skipFolderCreation = this.checked; renderVersionWizardStep();" style="margin-top: 0.125rem;">
+                  <div>
+                    <strong>Let agent generate folder structure</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                      Skip creating the folder structure locally. The agent will create it in its branch.
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          ` : ""}
         </div>
       </label>
     </div>
@@ -308,7 +348,12 @@ async function createVersionFromWizard() {
         minor: versionWizardData.minor,
         type: versionWizardData.type || "minor",
         goals: versionWizardData.goals || [],
-        launchPlanningAgent: useAI
+        launchPlanningAgent: useAI,
+        commitBeforeAgent: versionWizardData.commitBeforeAgent !== false, // Default to true
+        pushBeforeAgent: versionWizardData.pushBeforeAgent !== false, // Default to true
+        skipFolderCreation: versionWizardData.skipFolderCreation === true,
+        autoMerge: versionWizardData.autoMerge === true,
+        mergeStrategy: versionWizardData.mergeStrategy || "merge"
       }),
       headers: {
         "Content-Type": "application/json"

@@ -1,5 +1,5 @@
 {
-  "version": "0-6",
+  "version": "0-7",
   "type": "minor",
   "status": "rejected",
   "started": "2025-12-27",
@@ -8,11 +8,11 @@
   "stages": {
     "1plan": {
       "status": "rejected",
-      "startedAt": "2025-12-27T15:52:27.824Z"
+      "startedAt": "2025-12-27T17:41:44.277Z"
     },
     "2implement": {
       "status": "rejected",
-      "startedAt": "2025-12-27T15:52:27.824Z"
+      "startedAt": "2025-12-27T17:41:44.277Z"
     }
   },
   "rejected": "2025-12-27"

@@ -1,6 +1,6 @@
-# Version 0-6
+# Version 0-8
 
-**Status**: Rejected
+**Status**: In Progress
 **Started**: 2025-12-27
 
 ## Summary

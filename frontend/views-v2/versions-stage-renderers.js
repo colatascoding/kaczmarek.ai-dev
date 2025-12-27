@@ -95,6 +95,19 @@ async function renderPlanStage(versionTag, container) {
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
                 Planning agent has completed. Goals have been generated.
               </p>
+              ${agentStatus.autoMerge ? `
+                <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem;">🔄</span>
+                    <div>
+                      <strong style="font-size: 0.875rem; color: var(--primary);">Auto-merge enabled</strong>
+                      <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                        The agent's branch will be automatically merged when planning completes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ` : ""}
             ` : agentStatus.status === "failed" ? `
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--error);">
                 Planning agent failed: ${agentStatus.error || "Unknown error"}

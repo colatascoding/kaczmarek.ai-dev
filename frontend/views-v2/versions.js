@@ -723,13 +723,25 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
     clearInterval(planningAgentIntervals.get(versionTag));
   }
   
-  // Start polling
-  const interval = setInterval(async () => {
+  // Dynamic polling interval - starts at 15s, increases if rate limited
+  let pollInterval = 15000; // 15 seconds default (increased to reduce API calls)
+  let consecutiveErrors = 0;
+  
+  const poll = async () => {
+    // Check if polling was stopped
+    if (!planningAgentIntervals.has(versionTag)) {
+      return;
+    }
+    
     try {
       const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
       
       if (agentData.hasAgent) {
         const agent = agentData.agent;
+        
+        // Reset error counter on success
+        consecutiveErrors = 0;
+        pollInterval = 15000; // Reset to default
         
         // Always refresh plan stage if we're viewing it to show real-time sync status
         const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
@@ -744,6 +756,18 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
               await renderPlanStage(versionTag, stageContent);
             }
           }
+        }
+        
+        // If rate limited, increase polling interval with exponential backoff
+        if (agent.rateLimited) {
+          consecutiveErrors++;
+          pollInterval = Math.min(15000 * Math.pow(2, consecutiveErrors), 120000); // Max 2 minutes
+          console.log(`[Planning Agent] Rate limited for ${versionTag}, backing off to ${pollInterval / 1000}s interval`);
+          
+          // Schedule next poll with backoff
+          const timeoutId = setTimeout(poll, pollInterval);
+          planningAgentIntervals.set(versionTag, timeoutId);
+          return;
         }
         
         // Stop polling if agent completed or failed
@@ -761,22 +785,45 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
           if (window.loadVersionsV2) {
             await window.loadVersionsV2();
           }
+          return;
         }
       } else {
         // Agent not found, stop polling
         stopPlanningAgentPolling(versionTag);
+        return;
       }
+      
+      // Schedule next poll
+      const timeoutId = setTimeout(poll, pollInterval);
+      planningAgentIntervals.set(versionTag, timeoutId);
     } catch (error) {
-      console.error("Failed to check planning agent status:", error);
+      console.error(`Failed to poll planning agent status for ${versionTag}:`, error);
+      consecutiveErrors++;
+      
+      // Exponential backoff on errors
+      pollInterval = Math.min(15000 * Math.pow(2, consecutiveErrors), 120000); // Max 2 minutes
+      
+      // If too many errors, stop polling
+      if (consecutiveErrors >= 5) {
+        console.warn(`[Planning Agent] Too many errors for ${versionTag}, stopping polling`);
+        stopPlanningAgentPolling(versionTag);
+        return;
+      }
+      
+      // Schedule next poll with backoff
+      const timeoutId = setTimeout(poll, pollInterval);
+      planningAgentIntervals.set(versionTag, timeoutId);
     }
-  }, 5000); // Check every 5 seconds
+  };
   
-  planningAgentIntervals.set(versionTag, interval);
+  // Start polling
+  const timeoutId = setTimeout(poll, pollInterval);
+  planningAgentIntervals.set(versionTag, timeoutId);
 }
 
 function stopPlanningAgentPolling(versionTag) {
   if (planningAgentIntervals.has(versionTag)) {
-    clearInterval(planningAgentIntervals.get(versionTag));
+    clearTimeout(planningAgentIntervals.get(versionTag));
     planningAgentIntervals.delete(versionTag);
   }
 }
