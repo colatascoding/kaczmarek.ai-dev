@@ -74,7 +74,10 @@ function renderDecisionCard(decision, executionId) {
               ` : ""}
               <button 
                 class="btn btn-primary btn-sm" 
-                onclick="submitDecision('${decision.decisionId}', '${proposal.id || index}', '${executionId}')"
+                data-decision-id="${escapeHtml(decision.decisionId)}"
+                data-proposal-id="${escapeHtml(proposal.id || String(index))}"
+                data-execution-id="${escapeHtml(executionId)}"
+                onclick="submitDecisionFromButton(this)"
                 style="margin-top: 0.5rem;">
                 Select
               </button>
@@ -93,6 +96,26 @@ function renderDecisionCard(decision, executionId) {
 }
 
 /**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  if (text == null) return "";
+  const div = document.createElement("div");
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+/**
+ * Submit decision from button click (safer than inline onclick)
+ */
+function submitDecisionFromButton(button) {
+  const decisionId = button.getAttribute("data-decision-id");
+  const choice = button.getAttribute("data-proposal-id");
+  const executionId = button.getAttribute("data-execution-id");
+  submitDecision(decisionId, choice, executionId);
+}
+
+/**
  * Submit a decision
  */
 async function submitDecision(decisionId, choice, executionId, notes = "") {
@@ -106,16 +129,20 @@ async function submitDecision(decisionId, choice, executionId, notes = "") {
       window.showNotification("Decision submitted successfully", "success");
       
       // Remove decision card
-      const card = document.querySelector(`[data-decision-id="${decisionId}"]`);
+      const card = document.querySelector(`[data-decision-id="${escapeHtml(decisionId)}"]`);
       if (card) {
         card.style.opacity = "0.5";
+        const escapedChoice = escapeHtml(choice);
         card.innerHTML = `
           <div style="text-align: center; padding: 1rem;">
-            <p style="color: var(--success);">✓ Decision submitted: ${choice}</p>
+            <p style="color: var(--success);">✓ Decision submitted: ${escapedChoice}</p>
             <p style="font-size: 0.875rem; color: var(--text-light);">Workflow resuming...</p>
           </div>
         `;
       }
+      
+      // Stop polling for this execution since decision is submitted
+      stopDecisionsPolling(executionId);
       
       // Refresh execution status
       if (window.loadExecutions) {
@@ -144,28 +171,40 @@ function hideDecisions() {
 /**
  * Check for pending decisions periodically
  */
-let decisionsCheckInterval = null;
+const pollingIntervals = new Map(); // Track intervals per executionId
 
 function startDecisionsPolling(executionId) {
-  if (decisionsCheckInterval) {
-    clearInterval(decisionsCheckInterval);
+  // Stop existing polling for this execution if any
+  if (pollingIntervals.has(executionId)) {
+    clearInterval(pollingIntervals.get(executionId));
   }
   
-  decisionsCheckInterval = setInterval(() => {
+  // Start polling for this specific execution
+  const interval = setInterval(() => {
     loadPendingDecisions(executionId);
   }, 3000); // Check every 3 seconds
+  
+  pollingIntervals.set(executionId, interval);
 }
 
-function stopDecisionsPolling() {
-  if (decisionsCheckInterval) {
-    clearInterval(decisionsCheckInterval);
-    decisionsCheckInterval = null;
+function stopDecisionsPolling(executionId) {
+  if (executionId) {
+    // Stop polling for specific execution
+    if (pollingIntervals.has(executionId)) {
+      clearInterval(pollingIntervals.get(executionId));
+      pollingIntervals.delete(executionId);
+    }
+  } else {
+    // Stop all polling
+    pollingIntervals.forEach(interval => clearInterval(interval));
+    pollingIntervals.clear();
   }
 }
 
 // Expose globally
 window.loadPendingDecisions = loadPendingDecisions;
 window.submitDecision = submitDecision;
+window.submitDecisionFromButton = submitDecisionFromButton;
 window.hideDecisions = hideDecisions;
 window.startDecisionsPolling = startDecisionsPolling;
 window.stopDecisionsPolling = stopDecisionsPolling;

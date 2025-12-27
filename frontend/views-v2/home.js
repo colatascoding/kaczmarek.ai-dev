@@ -68,6 +68,7 @@ async function loadHome() {
   }
   
   // Load recent activity
+  let waitingExecutions = [];
   try {
     const activityData = await window.apiCall("/api/executions?limit=10");
     const executions = activityData.executions || [];
@@ -104,10 +105,19 @@ async function loadHome() {
         }).join("");
         
         // Check for decisions on waiting executions
-        const waitingExecutions = executions.filter(e => e.status === "waiting");
+        waitingExecutions = executions.filter(e => e.status === "waiting");
         for (const exec of waitingExecutions) {
           if (window.loadPendingDecisions) {
             await window.loadPendingDecisions(exec.executionId);
+          }
+        }
+        
+        // Set up periodic checking for decisions
+        // Use the decisions.js polling mechanism instead of creating a duplicate
+        if (window.startDecisionsPolling && waitingExecutions.length > 0) {
+          // Poll all waiting executions
+          for (const exec of waitingExecutions) {
+            window.startDecisionsPolling(exec.executionId);
           }
         }
       }
@@ -115,14 +125,6 @@ async function loadHome() {
   } catch (error) {
     console.error("Failed to load recent activity:", error);
   }
-  
-  // Set up periodic checking for decisions (every 5 seconds)
-  if (window.decisionsCheckInterval) {
-    clearInterval(window.decisionsCheckInterval);
-  }
-  window.decisionsCheckInterval = setInterval(() => {
-    checkAndDisplayDecisions();
-  }, 5000);
 }
 
 /**
@@ -232,3 +234,4 @@ window.refreshHome = refreshHome;
 window.showExecutionDetails = showExecutionDetails;
 window.loadWorkstreams = loadWorkstreams;
 window.showWorkstreamDetail = showWorkstreamDetail;
+window.checkAndDisplayDecisions = checkAndDisplayDecisions;
