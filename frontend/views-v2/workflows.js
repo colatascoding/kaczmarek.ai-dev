@@ -293,10 +293,32 @@ function renderWorkflowDetailContent(workflow) {
  */
 async function runWorkflowV2(workflowId) {
   try {
-    if (window.runWorkflow) {
-      await window.runWorkflow(workflowId);
+    // Use the workflow execution API
+    const result = await window.apiCall(`/api/workflows/${workflowId}/run`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    
+    if (result.success) {
+      window.showNotification(`Workflow started: ${result.executionId}`, "success");
+      
+      // Check for decisions after a short delay (workflow might reach decision point quickly)
+      setTimeout(async () => {
+        if (window.loadPendingDecisions) {
+          await window.loadPendingDecisions(result.executionId);
+        }
+        // Start polling for decisions
+        if (window.startDecisionsPolling) {
+          window.startDecisionsPolling(result.executionId);
+        }
+      }, 2000);
+      
+      // Refresh workflows list to show updated execution count
+      if (window.loadWorkflowsV2) {
+        setTimeout(() => window.loadWorkflowsV2(), 1000);
+      }
     } else {
-      window.showNotification("Workflow execution not available", "error");
+      window.showNotification("Failed to start workflow", "error");
     }
   } catch (error) {
     console.error("Failed to run workflow:", error);

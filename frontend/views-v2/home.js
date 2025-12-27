@@ -4,6 +4,148 @@
  */
 
 /**
+ * Check for pending decisions and display them
+ */
+async function checkAndDisplayDecisions() {
+  try {
+    // Get all executions
+    const executionsData = await window.apiCall("/api/executions").catch(() => ({ executions: [] }));
+    const executions = executionsData.executions || [];
+    
+    // Find waiting executions
+    const waitingExecutions = executions.filter(e => e.status === "waiting");
+    
+    // Load decisions for each waiting execution
+    for (const exec of waitingExecutions) {
+      if (window.loadPendingDecisions) {
+        await window.loadPendingDecisions(exec.executionId);
+      }
+    }
+    
+    // Start polling if there are waiting executions
+    if (waitingExecutions.length > 0 && window.startDecisionsPolling) {
+      // Poll the first waiting execution (or all of them)
+      for (const exec of waitingExecutions) {
+        window.startDecisionsPolling(exec.executionId);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to check for decisions:", error);
+  }
+}
+
+/**
+ * Load home view
+ */
+async function loadHome() {
+  // Check for pending decisions first
+  await checkAndDisplayDecisions();
+  
+  // Load current version
+  try {
+    const versionData = await window.apiCall("/api/versions");
+    const versions = versionData.versions || [];
+    const currentVersion = versions[0] || null;
+    
+    const versionCard = document.getElementById("current-version-card");
+    if (versionCard) {
+      if (currentVersion) {
+        document.getElementById("current-version-title").textContent = `Version ${currentVersion.tag}`;
+        document.getElementById("current-version-status").textContent = currentVersion.status || "unknown";
+        document.getElementById("current-version-status").className = `status-badge ${(currentVersion.status || "unknown").toLowerCase().replace(/\s+/g, "-")}`;
+        
+        // Load workstreams for current version
+        if (window.loadWorkstreams) {
+          await window.loadWorkstreams(currentVersion.tag);
+        }
+      } else {
+        document.getElementById("current-version-title").textContent = "No version found";
+        document.getElementById("current-version-status").textContent = "-";
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load current version:", error);
+  }
+  
+  // Load recent activity
+  try {
+    const activityData = await window.apiCall("/api/executions?limit=10");
+    const executions = activityData.executions || [];
+    
+    const activityContainer = document.getElementById("recent-activity");
+    if (activityContainer) {
+      if (executions.length === 0) {
+        activityContainer.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--text-light);">
+            <p>No recent activity</p>
+          </div>
+        `;
+      } else {
+        activityContainer.innerHTML = executions.map(exec => {
+          const isWaiting = exec.status === "waiting";
+          return `
+          <div class="list-item-v2 ${isWaiting ? 'waiting-execution' : ''}" onclick="showExecutionDetails('${exec.executionId}')" style="cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div style="flex: 1;">
+                <h4 style="margin: 0 0 0.5rem 0;">${exec.workflow?.name || exec.workflowId || "Unknown Workflow"}</h4>
+                <p style="margin: 0; font-size: 0.875rem; color: var(--text-light);">
+                  ${window.formatDateForDisplay ? window.formatDateForDisplay(exec.startedAt) : exec.startedAt}
+                </p>
+                ${isWaiting ? `
+                  <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--warning);">
+                    ⚠️ Waiting for your decision
+                  </p>
+                ` : ""}
+              </div>
+              <span class="status-badge ${exec.status}">${exec.status}</span>
+            </div>
+          </div>
+        `;
+        }).join("");
+        
+        // Check for decisions on waiting executions
+        const waitingExecutions = executions.filter(e => e.status === "waiting");
+        for (const exec of waitingExecutions) {
+          if (window.loadPendingDecisions) {
+            await window.loadPendingDecisions(exec.executionId);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load recent activity:", error);
+  }
+  
+  // Set up periodic checking for decisions (every 5 seconds)
+  if (window.decisionsCheckInterval) {
+    clearInterval(window.decisionsCheckInterval);
+  }
+  window.decisionsCheckInterval = setInterval(() => {
+    checkAndDisplayDecisions();
+  }, 5000);
+}
+
+/**
+ * Refresh home view
+ */
+function refreshHome() {
+  loadHome();
+}
+
+/**
+ * Show execution details (redirect to executions view if available)
+ */
+function showExecutionDetails(executionId) {
+  // Try to use the existing execution details function
+  if (window.showExecutionDetails) {
+    window.showExecutionDetails(executionId);
+  } else {
+    // Fallback: show notification with execution ID
+    window.showNotification(`Execution: ${executionId}`, "info");
+  }
+}
+
+/**
  * Load workstreams for current version
  */
 async function loadWorkstreams(versionTag) {
@@ -85,6 +227,8 @@ function showWorkstreamDetail(workstreamId) {
 }
 
 // Expose globally
+window.loadHome = loadHome;
+window.refreshHome = refreshHome;
+window.showExecutionDetails = showExecutionDetails;
 window.loadWorkstreams = loadWorkstreams;
 window.showWorkstreamDetail = showWorkstreamDetail;
-

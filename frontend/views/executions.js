@@ -49,7 +49,25 @@ function renderExecutions(executions, containerId) {
 /**
  * Show execution details
  */
+/**
+ * Check for pending decisions when showing execution details
+ */
+async function checkExecutionDecisions(executionId) {
+  if (window.loadPendingDecisions) {
+    await window.loadPendingDecisions(executionId);
+    // Start polling if there are pending decisions
+    const decisions = await window.apiCall(`/api/executions/${executionId}/decisions`).catch(() => ({ decisions: [] }));
+    if (decisions.decisions && decisions.decisions.length > 0) {
+      if (window.startDecisionsPolling) {
+        window.startDecisionsPolling(executionId);
+      }
+    }
+  }
+}
+
 async function showExecutionDetails(executionId) {
+  // Check for pending decisions
+  await checkExecutionDecisions(executionId);
   try {
     const data = await window.apiCall(`/api/executions/${executionId}`);
     const exec = data.execution;

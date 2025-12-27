@@ -1,0 +1,151 @@
+name: "Plan with Decisions"
+version: "1.0.0"
+description: "Planning workflow that scans the project, generates proposals, and waits for user decisions"
+interactionMode: "human-in-the-loop"
+category: "planning"
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run plan-with-decisions"
+    params:
+      - name: "versionTag"
+        type: "string"
+        description: "Version tag to plan for"
+
+steps:
+  # Step 1: Scan repository
+  - id: "scan"
+    module: "review"
+    action: "scan-repository"
+    description: "Scan repository structure"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "summary"
+        type: "object"
+    onSuccess: "analyze-changes"
+    onFailure: "error-handler"
+
+  # Step 2: Analyze changes
+  - id: "analyze-changes"
+    module: "review"
+    action: "analyze-changes"
+    description: "Analyze recent changes"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      days: 7
+    outputs:
+      - name: "commits"
+        type: "array"
+      - name: "changedFiles"
+        type: "array"
+    onSuccess: "generate-proposals"
+    onFailure: "error-handler"
+
+  # Step 3: Generate planning proposals
+  - id: "generate-proposals"
+    module: "system"
+    action: "wait-for-decision"
+    description: "Present planning proposals for user review"
+    inputs:
+      title: "Planning Proposals"
+      description: "Based on the project scan, here are proposed planning items. Please review and select which ones to include."
+      proposals:
+        - id: "add-features"
+          label: "Add New Features"
+          description: "Proposed features based on recent changes and project structure"
+        - id: "refactor-code"
+          label: "Refactor Code"
+          description: "Code improvements and refactoring opportunities identified"
+        - id: "update-docs"
+          label: "Update Documentation"
+          description: "Documentation updates needed based on code changes"
+        - id: "skip"
+          label: "Skip Planning"
+          description: "Continue without making changes"
+    outputs:
+      - name: "decision"
+        type: "string"
+      - name: "decisionId"
+        type: "string"
+    onSuccess:
+      condition: "{{ steps.generate-proposals.outputs.decision }} === 'skip'"
+      then: "complete"
+      else: "process-selection"
+
+  # Step 4: Process selected proposals
+  - id: "process-selection"
+    module: "system"
+    action: "log"
+    description: "Process the selected planning option"
+    inputs:
+      message: "Processing selection: {{ steps.generate-proposals.outputs.decision }}"
+      level: "info"
+    onSuccess:
+      condition: "{{ steps.generate-proposals.outputs.decision }} === 'add-features'"
+      then: "plan-features"
+      else:
+        condition: "{{ steps.generate-proposals.outputs.decision }} === 'refactor-code'"
+        then: "plan-refactor"
+        else: "plan-docs"
+
+  # Step 5: Plan features
+  - id: "plan-features"
+    module: "system"
+    action: "log"
+    description: "Plan new features"
+    inputs:
+      message: "Planning new features based on project analysis"
+      level: "info"
+    onSuccess: "complete"
+
+  # Step 6: Plan refactor
+  - id: "plan-refactor"
+    module: "system"
+    action: "log"
+    description: "Plan code refactoring"
+    inputs:
+      message: "Planning code refactoring based on analysis"
+      level: "info"
+    onSuccess: "complete"
+
+  # Step 7: Plan docs
+  - id: "plan-docs"
+    module: "system"
+    action: "log"
+    description: "Plan documentation updates"
+    inputs:
+      message: "Planning documentation updates"
+      level: "info"
+    onSuccess: "complete"
+
+  # Step 8: Error handler
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 9: Complete
+  - id: "complete"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify completion"
+    inputs:
+      status: "{{ workflow.status }}"
+      executionId: "{{ workflow.executionId }}"
+    onSuccess: "log-complete"
+    onFailure: "log-complete"
+
+  - id: "log-complete"
+    module: "system"
+    action: "log"
+    description: "Final log"
+    inputs:
+      message: "Planning workflow completed"
+      level: "info"
+

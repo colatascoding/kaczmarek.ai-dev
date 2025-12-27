@@ -29,7 +29,7 @@ function setupNavigation() {
 /**
  * Switch view
  */
-function switchView(viewName) {
+async function switchView(viewName) {
   currentView = viewName;
   
   // Hide all views
@@ -51,16 +51,20 @@ function switchView(viewName) {
   // Load view-specific data
   switch (viewName) {
     case "home":
-      loadHome();
+      await loadHome();
+      // Check for pending decisions on home view
+      if (window.checkAndDisplayDecisions) {
+        await window.checkAndDisplayDecisions();
+      }
       break;
     case "versions":
-      if (window.loadVersionsV2) window.loadVersionsV2();
+      if (window.loadVersionsV2) await window.loadVersionsV2();
       break;
     case "workflows":
-      if (window.loadWorkflowsV2) window.loadWorkflowsV2();
+      if (window.loadWorkflowsV2) await window.loadWorkflowsV2();
       break;
     case "library":
-      if (window.loadLibraryV2) window.loadLibraryV2();
+      if (window.loadLibraryV2) await window.loadLibraryV2();
       break;
   }
 }
@@ -103,32 +107,29 @@ function refreshHome() {
 }
 
 /**
- * Load home view
+ * Load home view (delegates to home.js)
  */
 async function loadHome() {
-  try {
-    // Load current version
-    const versionsData = await window.apiCall("/api/versions");
-    const versions = versionsData.versions || [];
-    
-    if (versions.length > 0) {
-      const current = versions[0]; // Most recent
-      currentVersion = current.tag;
-      await renderCurrentVersion(current);
-    } else {
-      renderNoVersion();
+  if (window.loadHome) {
+    await window.loadHome();
+  } else {
+    // Fallback implementation
+    try {
+      const versionsData = await window.apiCall("/api/versions");
+      const versions = versionsData.versions || [];
+      
+      if (versions.length > 0) {
+        const current = versions[0];
+        currentVersion = current.tag;
+      }
+      
+      // Check for pending decisions
+      if (window.checkAndDisplayDecisions) {
+        await window.checkAndDisplayDecisions();
+      }
+    } catch (error) {
+      console.error("Failed to load home:", error);
     }
-    
-    // Load workstreams
-    if (currentVersion && window.loadWorkstreams) {
-      await window.loadWorkstreams(currentVersion);
-    }
-    
-    // Load recent activity
-    await loadRecentActivity();
-  } catch (error) {
-    console.error("Failed to load home:", error);
-    window.showNotification("Failed to load home data", "error");
   }
 }
 
