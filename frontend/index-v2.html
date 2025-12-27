@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kaczmarek.ai-dev</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles-v2.css">
+</head>
+<body>
+  <div class="app-v2">
+    <!-- Header -->
+    <header class="header-v2">
+      <div class="header-content">
+        <h1 class="logo">kaczmarek.ai-dev</h1>
+        <nav class="nav-v2">
+          <button class="nav-btn-v2 active" data-view="home">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Home</span>
+          </button>
+          <button class="nav-btn-v2" data-view="versions">
+            <span class="nav-icon">📚</span>
+            <span class="nav-label">Versions</span>
+          </button>
+          <button class="nav-btn-v2" data-view="workflows">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Workflows</span>
+          </button>
+          <button class="nav-btn-v2" data-view="library">
+            <span class="nav-icon">📦</span>
+            <span class="nav-label">Library</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-v2">
+      <!-- Home View -->
+      <div id="home-view" class="view-v2 active">
+        <div class="view-header-v2">
+          <h2>Home</h2>
+          <button class="btn btn-primary" onclick="refreshHome()">Refresh</button>
+        </div>
+        
+        <!-- Current Version Card -->
+        <div id="current-version-card" class="version-card-v2">
+          <div class="version-card-header">
+            <div>
+              <h3 id="current-version-title">Loading...</h3>
+              <span id="current-version-status" class="status-badge">-</span>
+            </div>
+            <button class="btn btn-sm" onclick="switchView('versions')">View Details</button>
+          </div>
+          
+          <!-- Stage Progress -->
+          <div class="stage-progress-v2">
+            <div class="stage-progress-bar">
+              <div class="stage-item completed" data-stage="plan">
+                <div class="stage-icon">✓</div>
+                <div class="stage-label">Plan</div>
+              </div>
+              <div class="stage-connector"></div>
+              <div class="stage-item active" data-stage="implement">
+                <div class="stage-icon">→</div>
+                <div class="stage-label">Implement</div>
+              </div>
+              <div class="stage-connector"></div>
+              <div class="stage-item pending" data-stage="test">
+                <div class="stage-icon">○</div>
+                <div class="stage-label">Test</div>
+              </div>
+              <div class="stage-connector"></div>
+              <div class="stage-item pending" data-stage="review">
+                <div class="stage-icon">○</div>
+                <div class="stage-label">Review</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="quick-actions-v2">
+            <button class="action-btn-v2" onclick="openVersionCreationWizard()">
+              <span class="action-icon">➕</span>
+              <span class="action-label">New Version</span>
+            </button>
+            <button class="action-btn-v2" onclick="openWorkstreamWizard()">
+              <span class="action-icon">🔀</span>
+              <span class="action-label">New Workstream</span>
+            </button>
+            <button class="action-btn-v2" onclick="runReviewWorkflow()">
+              <span class="action-icon">📝</span>
+              <span class="action-label">Run Review</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Workstreams -->
+        <div class="section-v2">
+          <div class="section-header-v2">
+            <h3>Active Workstreams</h3>
+            <span id="workstream-count" class="badge">0</span>
+          </div>
+          <div id="workstreams-list" class="workstreams-grid-v2">
+            <!-- Workstreams will be loaded here -->
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="section-v2">
+          <div class="section-header-v2">
+            <h3>Recent Activity</h3>
+            <button class="btn btn-sm" onclick="switchView('executions')">View All</button>
+          </div>
+          <div id="recent-activity" class="activity-list-v2">
+            <!-- Activity will be loaded here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Versions View -->
+      <div id="versions-view" class="view-v2">
+        <div class="view-header-v2">
+          <h2>Versions</h2>
+          <div class="view-actions">
+            <button class="btn btn-secondary" onclick="switchView('home')">← Back</button>
+            <button class="btn btn-primary" onclick="openVersionCreationWizard()">+ New Version</button>
+          </div>
+        </div>
+        
+        <div id="versions-list" class="versions-list-v2">
+          <!-- Versions will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Version Detail View -->
+      <div id="version-detail-view" class="view-v2">
+        <div class="view-header-v2">
+          <div>
+            <button class="btn btn-sm btn-secondary" onclick="switchView('versions')">← Back</button>
+            <h2 id="version-detail-title">Version Detail</h2>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-sm" onclick="refreshVersionDetail()">Refresh</button>
+          </div>
+        </div>
+        
+        <!-- Stage Navigation -->
+        <div class="stage-nav-v2">
+          <button class="stage-nav-btn" data-stage="plan" onclick="showStage('plan')">
+            <span class="stage-nav-icon">📋</span>
+            <span class="stage-nav-label">Plan</span>
+            <span class="stage-nav-status" id="stage-status-plan">-</span>
+          </button>
+          <button class="stage-nav-btn" data-stage="implement" onclick="showStage('implement')">
+            <span class="stage-nav-icon">⚡</span>
+            <span class="stage-nav-label">Implement</span>
+            <span class="stage-nav-status" id="stage-status-implement">-</span>
+          </button>
+          <button class="stage-nav-btn" data-stage="test" onclick="showStage('test')">
+            <span class="stage-nav-icon">🧪</span>
+            <span class="stage-nav-label">Test</span>
+            <span class="stage-nav-status" id="stage-status-test">-</span>
+          </button>
+          <button class="stage-nav-btn" data-stage="review" onclick="showStage('review')">
+            <span class="stage-nav-icon">📝</span>
+            <span class="stage-nav-label">Review</span>
+            <span class="stage-nav-status" id="stage-status-review">-</span>
+          </button>
+        </div>
+        
+        <!-- Stage Content -->
+        <div id="stage-content" class="stage-content-v2">
+          <!-- Stage content will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Workflows View -->
+      <div id="workflows-view" class="view-v2">
+        <div class="view-header-v2">
+          <h2>Workflows</h2>
+          <button class="btn btn-primary" onclick="refreshWorkflows()">Refresh</button>
+        </div>
+        <div id="workflows-list" class="list-v2">
+          <!-- Workflows will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Library View -->
+      <div id="library-view" class="view-v2">
+        <div class="view-header-v2">
+          <h2>Library</h2>
+          <div class="library-tabs-v2">
+            <button class="tab-btn active" data-tab="workflows" onclick="switchLibraryTab('workflows')">Workflows</button>
+            <button class="tab-btn" data-tab="dashboards" onclick="switchLibraryTab('dashboards')">Dashboards</button>
+            <button class="tab-btn" data-tab="templates" onclick="switchLibraryTab('templates')">Templates</button>
+          </div>
+        </div>
+        <div id="library-content" class="library-content-v2">
+          <!-- Library content will be loaded here -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <!-- Version Creation Wizard -->
+  <div id="version-wizard-modal" class="modal-v2">
+    <div class="modal-content-v2">
+      <div class="modal-header-v2">
+        <h3>Create New Version</h3>
+        <button class="modal-close" onclick="closeVersionWizard()">&times;</button>
+      </div>
+      <div class="modal-body-v2">
+        <div id="version-wizard-steps"></div>
+      </div>
+      <div class="modal-footer-v2">
+        <button class="btn btn-secondary" onclick="closeVersionWizard()">Cancel</button>
+        <button class="btn btn-primary" id="version-wizard-next" onclick="nextVersionWizardStep()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workstream Wizard Modal -->
+  <div id="workstream-wizard-modal" class="modal-v2">
+    <div class="modal-content-v2">
+      <div class="modal-header-v2">
+        <h3>Create New Workstream</h3>
+        <button class="modal-close" onclick="closeWorkstreamWizard()">&times;</button>
+      </div>
+      <div class="modal-body-v2">
+        <div id="workstream-wizard-form"></div>
+      </div>
+      <div class="modal-footer-v2">
+        <button class="btn btn-secondary" onclick="closeWorkstreamWizard()">Cancel</button>
+        <button class="btn btn-primary" onclick="createWorkstream()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Wizard Modal -->
+  <div id="stage-wizard-modal" class="modal-v2">
+    <div class="modal-content-v2 modal-large">
+      <div class="modal-header-v2">
+        <h3 id="stage-wizard-title">Stage Wizard</h3>
+        <button class="modal-close" onclick="closeStageWizard()">&times;</button>
+      </div>
+      <div class="modal-body-v2">
+        <div id="stage-wizard-content"></div>
+      </div>
+      <div class="modal-footer-v2">
+        <button class="btn btn-secondary" onclick="closeStageWizard()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load utilities first -->
+  <script src="/static/utils.js"></script>
+  <!-- Load view modules -->
+  <script src="/static/views/dashboard.js"></script>
+  <script src="/static/views/dashboards.js"></script>
+  <script src="/static/views/workflows.js"></script>
+  <script src="/static/views/agents.js"></script>
+  <script src="/static/views/executions.js"></script>
+  <script src="/static/views/versions.js"></script>
+  <script src="/static/views/workflow-execution.js"></script>
+  <!-- Load new v2 views -->
+  <script src="/static/views-v2/home.js"></script>
+  <script src="/static/views-v2/versions.js"></script>
+  <script src="/static/views-v2/wizards.js"></script>
+  <!-- Load main app -->
+  <script src="/static/app-v2.js"></script>
+</body>
+</html>
+

@@ -53,13 +53,24 @@ function switchView(view) {
   
   // Update views
   document.querySelectorAll(".view").forEach(v => {
-    v.classList.toggle("active", v.id === `${view}-view`);
+    // Handle special case for dashboard-content view
+    if (view === "dashboard-content") {
+      v.classList.toggle("active", v.id === "dashboard-content-view");
+    } else {
+      v.classList.toggle("active", v.id === `${view}-view`);
+    }
   });
   
   // Load view data
   switch (view) {
     case "dashboard":
       if (window.loadDashboard) window.loadDashboard();
+      break;
+    case "dashboards":
+      if (window.loadDashboards) window.loadDashboards();
+      break;
+    case "dashboard-content":
+      // Dashboard content is loaded via loadDashboard() function
       break;
     case "workflows":
       if (window.loadWorkflows) window.loadWorkflows();
@@ -127,6 +138,7 @@ async function copyTextToClipboard(text) {
 
 // Expose globally
 window.switchView = switchView;
+window.currentView = currentView;
 window.closeModal = closeModal;
 window.showExecutionSummary = showExecutionSummary;
 window.copyTextToClipboard = copyTextToClipboard;

@@ -13,6 +13,7 @@
       <h1>kaczmarek.ai-dev</h1>
       <nav class="nav">
         <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="dashboards">Dashboards</button>
         <button class="nav-btn" data-view="workflows">Workflows</button>
         <button class="nav-btn" data-view="agents">Agents</button>
         <button class="nav-btn" data-view="executions">Executions</button>
@@ -177,6 +178,20 @@
         </div>
         <div id="versions-list" class="list"></div>
       </div>
+
+      <!-- Dashboards View -->
+      <div id="dashboards-view" class="view">
+        <div class="view-header">
+          <h2>Dashboards</h2>
+          <button class="btn btn-primary" onclick="loadDashboards()">Refresh</button>
+        </div>
+        <div id="dashboards-list" class="list"></div>
+      </div>
+
+      <!-- Dashboard Content View (for viewing a specific dashboard) -->
+      <div id="dashboard-content-view" class="view">
+        <div id="dashboard-content"></div>
+      </div>
     </main>
   </div>
 
@@ -192,6 +207,7 @@
   <script src="/static/utils.js"></script>
   <!-- Load view modules -->
   <script src="/static/views/dashboard.js"></script>
+  <script src="/static/views/dashboards.js"></script>
   <script src="/static/views/workflows.js"></script>
   <script src="/static/views/agents.js"></script>
   <script src="/static/views/executions.js"></script>
