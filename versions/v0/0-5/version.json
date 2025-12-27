@@ -1,0 +1,82 @@
+{
+  "version": "0-5",
+  "major": 0,
+  "minor": 5,
+  "type": "minor",
+  "status": "planning",
+  "started": null,
+  "completed": null,
+  "stages": {
+    "plan": {
+      "status": "in-progress",
+      "startedAt": "2025-12-27"
+    },
+    "implement": {
+      "status": "pending"
+    },
+    "test": {
+      "status": "pending"
+    },
+    "review": {
+      "status": "pending"
+    }
+  },
+  "metadata": {
+    "theme": "Maturity Milestone - Advanced Features and Intelligence",
+    "focusAreas": [
+      "Visual Workflow Editor",
+      "Advanced AI Assistance",
+      "Analytics and Insights",
+      "Multi-Repository Support",
+      "Plugin System",
+      "Production Reliability",
+      "Developer Experience",
+      "Export and Integration"
+    ],
+    "estimatedDuration": "8-10 weeks",
+    "complexity": "very-high",
+    "riskLevel": "high",
+    "dependencies": [
+      "version-0-4-complete",
+      "test-coverage-80-percent",
+      "core-modules-stable"
+    ],
+    "keyFeatures": [
+      "Drag-and-drop workflow editor",
+      "AI-powered task suggestions and code review",
+      "Comprehensive analytics dashboard",
+      "Multi-repository management",
+      "Plugin architecture",
+      "Error recovery and rollback",
+      "CI/CD export formats"
+    ],
+    "newTechnologies": [
+      "React Flow",
+      "Advanced Claude API integration",
+      "Chart.js/Recharts",
+      "Plugin sandboxing"
+    ],
+    "targetMetrics": {
+      "testCoverage": "≥ 85%",
+      "apiResponseTime": "< 150ms (99th percentile)",
+      "frontendLoadTime": "< 1.5s",
+      "systemUptime": "≥ 99.9%",
+      "zeroCriticalBugs": true
+    },
+    "successCriteria": [
+      "Visual editor can create workflows without YAML",
+      "AI assistance accepted rate ≥ 40%",
+      "Analytics provide actionable insights",
+      "Multi-repo supports 2+ projects",
+      "Plugin system enables custom modules",
+      "System recovers from failures without data loss"
+    ],
+    "preparingFor": "1.0 release",
+    "innovations": [
+      "First visual workflow editor",
+      "First AI-powered assistance",
+      "First multi-repository support",
+      "First plugin/extension system"
+    ]
+  }
+}
