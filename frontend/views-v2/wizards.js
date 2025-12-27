@@ -294,6 +294,13 @@ async function createVersionFromWizard() {
     const versionTag = `${versionWizardData.major}-${versionWizardData.minor}`;
     const useAI = versionWizardData.useAI !== false;
     
+    // Show loading state
+    const nextBtn = document.getElementById("version-wizard-next");
+    if (nextBtn) {
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Creating Version...";
+    }
+    
     const data = await window.apiCall("/api/versions", {
       method: "POST",
       body: JSON.stringify({
@@ -310,9 +317,14 @@ async function createVersionFromWizard() {
     
     if (useAI && data.agentTaskId) {
       window.showNotification(
-        `Version ${versionTag} created. Planning agent launched (ID: ${data.agentTaskId}). The agent will generate the plan in the background.`, 
+        `Version ${versionTag} created. Planning agent launched. Generating plan in the background...`, 
         "success"
       );
+      
+      // Start polling for agent status
+      if (window.startPlanningAgentPolling) {
+        window.startPlanningAgentPolling(versionTag, data.agentTaskId);
+      }
     } else {
       window.showNotification(`Version ${versionTag} created successfully`, "success");
     }
@@ -337,6 +349,13 @@ async function createVersionFromWizard() {
   } catch (error) {
     console.error("Failed to create version:", error);
     window.showNotification(`Failed to create version: ${error.message}`, "error");
+    
+    // Re-enable button on error
+    const nextBtn = document.getElementById("version-wizard-next");
+    if (nextBtn) {
+      nextBtn.disabled = false;
+      nextBtn.textContent = "Create Version";
+    }
   }
 }
 

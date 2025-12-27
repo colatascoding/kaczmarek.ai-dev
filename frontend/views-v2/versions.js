@@ -38,15 +38,35 @@ function renderVersionsList(versions) {
     return;
   }
   
+  // Start polling for versions with active planning agents
+  versions.forEach(version => {
+    if (version.planningAgent && 
+        version.planningAgent.status !== "completed" && 
+        version.planningAgent.status !== "failed" &&
+        window.startPlanningAgentPolling) {
+      window.startPlanningAgentPolling(version.tag, version.planningAgent.id);
+    }
+  });
+  
   container.innerHTML = versions.map(version => {
     const statusClass = (version.status || "pending").toLowerCase().replace(/\s+/g, "-");
+    const hasActivePlanningAgent = version.planningAgent && 
+      version.planningAgent.status !== "completed" && 
+      version.planningAgent.status !== "failed";
     
     return `
       <div class="version-card-v2" style="margin-bottom: 1.5rem;">
         <div class="version-card-header">
           <div>
             <h3>Version ${version.tag}</h3>
-            <span class="status-badge ${statusClass}">${version.status || "Unknown"}</span>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem;">
+              <span class="status-badge ${statusClass}">${version.status || "Unknown"}</span>
+              ${hasActivePlanningAgent ? `
+                <span class="status-badge processing" style="font-size: 0.75rem;">
+                  🤖 Planning Agent Running
+                </span>
+              ` : ""}
+            </div>
           </div>
           <button class="btn btn-primary" onclick="showVersionDetail('${version.tag}')">View Details</button>
         </div>
@@ -270,9 +290,60 @@ async function renderPlanStage(versionTag, container) {
     console.error("Failed to load plan summary:", error);
   }
   
+  // Check for planning agent status
+  let agentStatus = null;
+  try {
+    const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
+    if (agentData.hasAgent) {
+      agentStatus = agentData.agent;
+      // Start polling if agent is still running
+      if (agentStatus.status !== "completed" && agentStatus.status !== "failed") {
+        if (window.startPlanningAgentPolling) {
+          window.startPlanningAgentPolling(versionTag, agentStatus.id);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load planning agent status:", error);
+  }
+  
   container.innerHTML = `
     <div class="stage-wizard-content">
       <h3>Planning Stage</h3>
+      
+      ${agentStatus ? `
+        <div style="background: ${agentStatus.status === "completed" ? "var(--success-light, #e8f5e9)" : agentStatus.status === "failed" ? "var(--error-bg, #fee)" : "var(--primary-light, #e3f2fd)"}; border-left: 4px solid ${agentStatus.status === "completed" ? "var(--success, #4caf50)" : agentStatus.status === "failed" ? "var(--error, #f44336)" : "var(--primary)"}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: ${agentStatus.status === "completed" ? "var(--success)" : agentStatus.status === "failed" ? "var(--error)" : "var(--primary)"};">
+              ${agentStatus.status === "completed" ? "✓ Planning Agent Completed" : agentStatus.status === "failed" ? "✗ Planning Agent Failed" : "🤖 Planning Agent Running"}
+            </h4>
+            <span class="status-badge ${agentStatus.status}">${agentStatus.status}</span>
+          </div>
+          ${agentStatus.status === "running" || agentStatus.status === "processing" ? `
+            <p style="margin: 0.5rem 0; color: var(--text);">
+              The AI agent is analyzing your project and generating goals. This may take a few minutes.
+            </p>
+            <div style="margin-top: 0.75rem;">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 50%; animation: pulse 2s infinite;"></div>
+              </div>
+            </div>
+          ` : agentStatus.status === "completed" ? `
+            <p style="margin: 0.5rem 0; color: var(--text);">
+              The planning agent has completed and generated your version goals. Review and edit as needed below.
+            </p>
+          ` : agentStatus.status === "failed" ? `
+            <p style="margin: 0.5rem 0; color: var(--text);">
+              The planning agent encountered an error: ${agentStatus.error || "Unknown error"}. You can manually create goals below.
+            </p>
+          ` : ""}
+          ${agentStatus.cloudAgentId ? `
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
+              Agent ID: <a href="https://cursor.com/dashboard/agents/${agentStatus.cloudAgentId}" target="_blank" style="color: var(--primary);">${agentStatus.cloudAgentId.substring(0, 8)}...</a>
+            </p>
+          ` : ""}
+        </div>
+      ` : ""}
       
       ${summary ? `
         <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
@@ -319,6 +390,9 @@ async function renderPlanStage(versionTag, container) {
       <div style="display: flex; gap: 0.5rem;">
         <button class="btn btn-primary" onclick="savePlanStage('${versionTag}')">Save</button>
         <button class="btn btn-secondary" onclick="markStageComplete('${versionTag}', 'plan')">Mark Complete</button>
+        ${agentStatus && (agentStatus.status === "running" || agentStatus.status === "processing") ? `
+          <button class="btn btn-sm" onclick="refreshPlanStage('${versionTag}')">Refresh Status</button>
+        ` : ""}
       </div>
     </div>
   `;
@@ -335,6 +409,16 @@ async function renderPlanStage(versionTag, container) {
         </div>
       `).join("");
     }
+  }
+}
+
+/**
+ * Refresh plan stage (reloads content and agent status)
+ */
+async function refreshPlanStage(versionTag) {
+  const container = document.getElementById("stage-content");
+  if (container) {
+    await renderPlanStage(versionTag, container);
   }
 }
 
@@ -618,6 +702,79 @@ async function rejectVersion(versionTag) {
   }
 }
 
+/**
+ * Planning agent polling
+ */
+const planningAgentIntervals = new Map();
+
+function startPlanningAgentPolling(versionTag, agentTaskId) {
+  // Stop existing polling for this version if any
+  if (planningAgentIntervals.has(versionTag)) {
+    clearInterval(planningAgentIntervals.get(versionTag));
+  }
+  
+  // Start polling
+  const interval = setInterval(async () => {
+    try {
+      const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
+      
+      if (agentData.hasAgent) {
+        const agent = agentData.agent;
+        
+        // Stop polling if agent completed or failed
+        if (agent.status === "completed" || agent.status === "failed") {
+          stopPlanningAgentPolling(versionTag);
+          
+          // Show notification
+          if (agent.status === "completed") {
+            window.showNotification(`Planning agent completed for version ${versionTag}. Goals have been generated.`, "success");
+          } else {
+            window.showNotification(`Planning agent failed for version ${versionTag}: ${agent.error || "Unknown error"}`, "error");
+          }
+          
+          // Refresh plan stage if we're viewing it
+          const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+          if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
+            const stageContent = document.getElementById("stage-content");
+            if (stageContent && document.querySelector(".stage-nav-btn[data-stage='plan']")?.classList.contains("active")) {
+              await renderPlanStage(versionTag, stageContent);
+            }
+          }
+          
+          // Refresh versions list
+          if (window.loadVersionsV2) {
+            await window.loadVersionsV2();
+          }
+        }
+      } else {
+        // Agent not found, stop polling
+        stopPlanningAgentPolling(versionTag);
+      }
+    } catch (error) {
+      console.error("Failed to check planning agent status:", error);
+    }
+  }, 5000); // Check every 5 seconds
+  
+  planningAgentIntervals.set(versionTag, interval);
+}
+
+function stopPlanningAgentPolling(versionTag) {
+  if (planningAgentIntervals.has(versionTag)) {
+    clearInterval(planningAgentIntervals.get(versionTag));
+    planningAgentIntervals.delete(versionTag);
+  }
+}
+
+/**
+ * Refresh plan stage (reloads content and agent status)
+ */
+async function refreshPlanStage(versionTag) {
+  const container = document.getElementById("stage-content");
+  if (container) {
+    await renderPlanStage(versionTag, container);
+  }
+}
+
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
 window.showVersionDetail = showVersionDetail;
@@ -626,4 +783,7 @@ window.loadVersionStages = loadVersionStages;
 window.loadStageContent = loadStageContent;
 window.refreshVersionDetail = refreshVersionDetail;
 window.rejectVersion = rejectVersion;
+window.startPlanningAgentPolling = startPlanningAgentPolling;
+window.stopPlanningAgentPolling = stopPlanningAgentPolling;
+window.refreshPlanStage = refreshPlanStage;
 
