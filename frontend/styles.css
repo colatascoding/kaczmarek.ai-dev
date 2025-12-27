@@ -491,6 +491,189 @@ code {
   z-index: 1;
 }
 
+/* Repo Status Overview */
+.repo-status-overview {
+  margin-top: 1rem;
+}
+
+.repo-status-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-light);
+}
+
+.repo-status-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+.repo-status-card {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.repo-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.repo-status-header h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.repo-status-summary {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg);
+  border-radius: 0.375rem;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+.repo-status-details {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.repo-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.repo-status-item strong {
+  font-size: 0.875rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.repo-status-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.repo-status-next-steps {
+  margin: 1rem 0;
+}
+
+.repo-status-next-steps h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+
+.next-steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.next-steps-list li {
+  padding: 0.5rem 0.75rem;
+  margin: 0.25rem 0;
+  background: var(--bg);
+  border-radius: 0.25rem;
+  border-left: 3px solid var(--primary);
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.next-steps-list li.next-steps-more {
+  border-left-color: var(--text-light);
+  color: var(--text-light);
+  font-style: italic;
+}
+
+.repo-status-agents {
+  margin: 1rem 0;
+}
+
+.repo-status-agents h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+
+.active-agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agent-item {
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.agent-item:hover {
+  background: var(--card-bg);
+  border-color: var(--primary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.agent-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.agent-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.agent-item-details {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-light);
+}
+
+.no-agents {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+.repo-status-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
 /* List Item Summary */
 .list-item-summary {
   margin: 0.5rem 0;

@@ -10,7 +10,21 @@ window.currentView = currentView; // Expose globally
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
-  loadDashboard();
+  // Wait a bit for all scripts to load, then load dashboard
+  setTimeout(() => {
+    if (window.loadDashboard) {
+      window.loadDashboard();
+    } else {
+      console.warn("loadDashboard not available yet, retrying...");
+      setTimeout(() => {
+        if (window.loadDashboard) {
+          window.loadDashboard();
+        } else {
+          console.error("loadDashboard still not available after retry");
+        }
+      }, 100);
+    }
+  }, 0);
 });
 
 /**
