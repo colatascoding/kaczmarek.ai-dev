@@ -1,0 +1,62 @@
+{
+  "version": "0-4",
+  "major": 0,
+  "minor": 4,
+  "type": "minor",
+  "status": "planning",
+  "started": "2025-12-27",
+  "targetCompletion": "2026-01-31",
+  "estimatedDuration": "6-8 weeks",
+  "stages": {
+    "plan": {
+      "status": "in-progress",
+      "startedAt": "2025-12-27"
+    },
+    "implement": {
+      "status": "pending"
+    },
+    "test": {
+      "status": "pending"
+    },
+    "review": {
+      "status": "pending"
+    }
+  },
+  "themes": [
+    "production-readiness",
+    "architectural-maturation",
+    "ux-polish",
+    "performance-optimization"
+  ],
+  "primaryGoals": [
+    "version-folder-structure-migration",
+    "library-system-enhancement",
+    "cloud-agent-integration-maturity",
+    "frontend-ui-ux-polish",
+    "parallel-workstreams",
+    "documentation-testing",
+    "performance-optimization"
+  ],
+  "complexity": "high",
+  "riskLevel": "medium",
+  "testCoverageTarget": 80,
+  "dependencies": {
+    "external": [
+      "cursor-cloud-agents-api",
+      "react-flow",
+      "nodejs-18+",
+      "sqlite-3.35+"
+    ],
+    "internal": [
+      "version-0-3-completion",
+      "version-0-2-stability",
+      "testing-framework",
+      "frontend-build-system"
+    ]
+  },
+  "metrics": {
+    "goals": 7,
+    "successCriteria": 8,
+    "features": 7
+  }
+}
