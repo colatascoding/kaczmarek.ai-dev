@@ -32,35 +32,85 @@ function runGit(args) {
 function loadConfig(cwd) {
   const configPath = path.join(cwd, CONFIG_FILENAME);
   if (!fs.existsSync(configPath)) {
-    return {
-      version: 1,
-      projectName: path.basename(cwd),
-      docs: {
-        docsDir: "docs",
-        reviewDir: "review",
-        progressDir: "progress"
-      },
-      ai: {
-        agentsDir: "agents",
-        toolsDir: "tools",
-        workflowsDir: "workflows",
-        promptsDir: "prompts"
-      },
-      timeline: {
-        diagramFile: "docs/TIMELINE.mmd"
-      }
-    };
+    return getDefaultConfig(cwd);
   }
 
   try {
     const raw = fs.readFileSync(configPath, "utf8");
     const parsed = JSON.parse(raw);
-    return parsed;
+    // Merge with defaults to ensure all new fields are present
+    return mergeConfig(getDefaultConfig(cwd), parsed);
   } catch (e) {
     error(`Failed to read/parse ${CONFIG_FILENAME}: ${String(e)}`);
     process.exitCode = 1;
     return null;
   }
+}
+
+function getDefaultConfig(cwd) {
+  return {
+    version: 2,
+    projectName: path.basename(cwd),
+    docs: {
+      docsDir: "docs",
+      versionsDir: "versions"
+    },
+    library: {
+      libraryDir: "library",
+      workflowsDir: "library/workflows",
+      dashboardsDir: "library/dashboards",
+      templatesDir: "library/templates",
+      versionSpecificLibraries: true
+    },
+    workflows: {
+      activeDir: "workflows",
+      discoveryOrder: ["active", "version-specific", "library"]
+    },
+    ai: {
+      agentsDir: "agents",
+      toolsDir: "tools",
+      workflowsDir: "workflows",
+      promptsDir: "prompts"
+    },
+    timeline: {
+      diagramFile: "docs/TIMELINE.mmd"
+    }
+  };
+}
+
+function mergeConfig(defaults, userConfig) {
+  const merged = { ...defaults };
+  
+  // Deep merge docs
+  if (userConfig.docs) {
+    merged.docs = { ...defaults.docs, ...userConfig.docs };
+  }
+  
+  // Deep merge library (new)
+  if (userConfig.library) {
+    merged.library = { ...defaults.library, ...userConfig.library };
+  }
+  
+  // Deep merge workflows (new)
+  if (userConfig.workflows) {
+    merged.workflows = { ...defaults.workflows, ...userConfig.workflows };
+  }
+  
+  // Deep merge ai
+  if (userConfig.ai) {
+    merged.ai = { ...defaults.ai, ...userConfig.ai };
+  }
+  
+  // Deep merge timeline
+  if (userConfig.timeline) {
+    merged.timeline = { ...defaults.timeline, ...userConfig.timeline };
+  }
+  
+  // Copy other fields
+  if (userConfig.version) merged.version = userConfig.version;
+  if (userConfig.projectName) merged.projectName = userConfig.projectName;
+  
+  return merged;
 }
 
 function saveConfig(cwd, config, { force = false } = {}) {
