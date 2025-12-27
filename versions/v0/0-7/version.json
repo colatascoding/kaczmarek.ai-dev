@@ -1,0 +1,70 @@
+{
+  "version": "0-7",
+  "type": "minor",
+  "status": "planning",
+  "started": "2025-12-27",
+  "description": "Planning Agent & Orchestration Refinement - Consolidation, stabilization, and enhancement of core features",
+  "goals": [
+    "Enhance AI-powered planning agent with context analysis and validation",
+    "Create robust decision workflow system with templates and tracking",
+    "Mature version management with lifecycle support and health metrics",
+    "Improve agent orchestration with smart auto-merge and conflict detection",
+    "Achieve 80%+ test coverage with comprehensive test suites",
+    "Complete documentation for all features and workflows"
+  ],
+  "stages": {
+    "1plan": {
+      "status": "in-progress",
+      "startedAt": "2025-12-27T16:00:00.000Z"
+    },
+    "2implement": {
+      "status": "pending"
+    },
+    "3test": {
+      "status": "pending"
+    },
+    "4review": {
+      "status": "pending"
+    }
+  },
+  "keyThemes": [
+    "AI-Powered Planning Enhancement",
+    "Decision Workflow Excellence",
+    "Version Management Maturity",
+    "Agent Orchestration Reliability",
+    "Quality & Documentation"
+  ],
+  "estimatedDuration": "5 weeks",
+  "complexity": "high",
+  "priority": "high",
+  "dependencies": {
+    "external": [
+      "Cursor Cloud Agent API",
+      "Claude API",
+      "Git"
+    ],
+    "internal": [
+      "Workflow Engine",
+      "Module System",
+      "Database",
+      "Frontend"
+    ]
+  },
+  "nonGoals": [
+    "Visual workflow editor",
+    "Multi-user collaboration",
+    "Real-time WebSocket updates",
+    "Advanced analytics dashboards",
+    "Mobile/responsive UI",
+    "Cloud sync/backup"
+  ],
+  "successMetrics": {
+    "planningSuccessRate": "≥ 90%",
+    "versionTransitionSuccess": "≥ 95%",
+    "autoMergeSuccess": "≥ 85%",
+    "testCoverage": "≥ 80% core, ≥ 70% overall",
+    "workflowExecutionTime": "≤ 5 minutes",
+    "planningAgentResponse": "≤ 3 minutes",
+    "pageLoadTime": "≤ 2 seconds"
+  }
+}
