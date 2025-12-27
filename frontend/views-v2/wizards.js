@@ -9,9 +9,26 @@ let versionWizardData = {};
 /**
  * Open version creation wizard
  */
-function openVersionCreationWizard() {
+async function openVersionCreationWizard() {
   versionWizardStep = 0;
   versionWizardData = {};
+  
+  // Fetch suggested next version
+  try {
+    const nextVersionData = await window.apiCall("/api/versions/next");
+    if (nextVersionData.suggested) {
+      versionWizardData.major = nextVersionData.suggested.major;
+      versionWizardData.minor = nextVersionData.suggested.minor;
+      versionWizardData.canCreate = nextVersionData.canCreate;
+      versionWizardData.reason = nextVersionData.reason;
+    }
+  } catch (error) {
+    console.error("Failed to fetch next version:", error);
+    // Default to 0-0 if fetch fails
+    versionWizardData.major = 0;
+    versionWizardData.minor = 0;
+    versionWizardData.canCreate = true;
+  }
   
   const modal = document.getElementById("version-wizard-modal");
   modal.classList.add("active");
@@ -55,50 +72,65 @@ function renderVersionWizardStep() {
  * Step 1: Version number and type
  */
 function renderVersionWizardStep1(container, nextBtn) {
+  const canCreate = versionWizardData.canCreate !== false;
+  const reason = versionWizardData.reason || "";
+  
   container.innerHTML = `
     <div style="margin-bottom: 1.5rem;">
       <h4 style="margin: 0 0 0.5rem 0;">Step 1 of 3: Version Information</h4>
       <p style="color: var(--text-light); font-size: 0.875rem;">Define the version number and type</p>
     </div>
     
+    ${!canCreate ? `
+      <div style="background: var(--error-bg, #fee); color: var(--error-text, #c00); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem; border: 1px solid var(--error-border, #fcc);">
+        <strong>⚠️ Cannot Create New Version</strong>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">${reason || "Current version must be completed or rejected first."}</p>
+      </div>
+    ` : ""}
+    
     <div style="margin-bottom: 1rem;">
       <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Version Type</label>
       <div style="display: flex; gap: 1rem;">
         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-          <input type="radio" name="versionType" value="major" ${versionWizardData.type === "major" ? "checked" : ""} onchange="versionWizardData.type = 'major'">
+          <input type="radio" name="versionType" value="major" ${versionWizardData.type === "major" ? "checked" : ""} onchange="versionWizardData.type = 'major'" ${!canCreate ? "disabled" : ""}>
           <span>Major Version</span>
         </label>
         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-          <input type="radio" name="versionType" value="minor" ${versionWizardData.type === "minor" || !versionWizardData.type ? "checked" : ""} onchange="versionWizardData.type = 'minor'">
+          <input type="radio" name="versionType" value="minor" ${versionWizardData.type === "minor" || !versionWizardData.type ? "checked" : ""} onchange="versionWizardData.type = 'minor'" ${!canCreate ? "disabled" : ""}>
           <span>Minor Version</span>
         </label>
       </div>
     </div>
     
     <div style="margin-bottom: 1rem;">
-      <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Version Number</label>
+      <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Version Number <span style="color: var(--text-light); font-size: 0.875rem; font-weight: normal;">(suggested)</span></label>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <input type="number" id="version-major" placeholder="0" min="0" value="${versionWizardData.major || ""}" 
+        <input type="number" id="version-major" placeholder="0" min="0" value="${versionWizardData.major !== undefined ? versionWizardData.major : ""}" 
                style="width: 80px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);" 
-               onchange="versionWizardData.major = parseInt(this.value)">
+               onchange="versionWizardData.major = parseInt(this.value)" ${!canCreate ? "disabled" : ""}>
         <span style="font-size: 1.25rem;">-</span>
-        <input type="number" id="version-minor" placeholder="0" min="0" value="${versionWizardData.minor || ""}" 
+        <input type="number" id="version-minor" placeholder="0" min="0" value="${versionWizardData.minor !== undefined ? versionWizardData.minor : ""}" 
                style="width: 80px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);" 
-               onchange="versionWizardData.minor = parseInt(this.value)">
+               onchange="versionWizardData.minor = parseInt(this.value)" ${!canCreate ? "disabled" : ""}>
       </div>
       <p id="version-preview" style="margin-top: 0.5rem; color: var(--text-light); font-size: 0.875rem;">
-        Version: ${versionWizardData.major || 0}-${versionWizardData.minor || 0}
+        Version: ${versionWizardData.major !== undefined ? versionWizardData.major : 0}-${versionWizardData.minor !== undefined ? versionWizardData.minor : 0}
       </p>
     </div>
   `;
   
   nextBtn.textContent = "Next: Goals →";
+  nextBtn.disabled = !canCreate;
   nextBtn.onclick = () => {
-    if (!versionWizardData.major && versionWizardData.major !== 0) {
+    if (!canCreate) {
+      window.showNotification(reason || "Cannot create new version. Complete or reject current version first.", "error");
+      return;
+    }
+    if (versionWizardData.major === undefined && versionWizardData.major !== 0) {
       window.showNotification("Please enter a major version number", "error");
       return;
     }
-    if (!versionWizardData.minor && versionWizardData.minor !== 0) {
+    if (versionWizardData.minor === undefined && versionWizardData.minor !== 0) {
       window.showNotification("Please enter a minor version number", "error");
       return;
     }

@@ -74,6 +74,14 @@ function renderVersionsList(versions) {
             `).join("")}
           </div>
         ` : ""}
+        
+        ${(version.status === "in-progress" || version.status === "In Progress") ? `
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <button class="btn btn-danger" onclick="rejectVersion('${version.tag}')" style="width: 100%;">
+              Reject Version
+            </button>
+          </div>
+        ` : ""}
       </div>
     `;
   }).join("");
@@ -526,10 +534,11 @@ async function renderReviewStage(versionTag, container) {
         </div>
       </div>
       
-      <div style="display: flex; gap: 0.5rem;">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
         <button class="btn btn-primary" onclick="window.runWorkflow && window.runWorkflow('review-self')">Run Review Workflow</button>
         <button class="btn btn-secondary" onclick="markStageComplete('${versionTag}', 'review')">Mark Complete</button>
         <button class="btn btn-primary" onclick="createNextVersion('${versionTag}')">Create Next Version</button>
+        <button class="btn btn-danger" onclick="rejectVersion('${versionTag}')" style="margin-left: auto;">Reject Version</button>
       </div>
     </div>
   `;
@@ -544,10 +553,51 @@ function refreshVersionDetail() {
   }
 }
 
+/**
+ * Reject version
+ */
+async function rejectVersion(versionTag) {
+  if (!confirm(`Are you sure you want to reject version ${versionTag}? This will mark it as rejected and allow creating a new version.`)) {
+    return;
+  }
+  
+  const reason = prompt("Please provide a reason for rejection (optional):");
+  
+  try {
+    await window.apiCall(`/api/versions/${versionTag}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || null }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    window.showNotification(`Version ${versionTag} rejected successfully`, "success");
+    
+    // Refresh versions list
+    await loadVersionsV2();
+    
+    // If viewing this version, refresh the detail view
+    const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+    if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
+      if (window.showVersionDetail) {
+        await window.showVersionDetail(versionTag);
+      } else if (window.loadVersionDetail) {
+        await window.loadVersionDetail(versionTag);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to reject version:", error);
+    window.showNotification(`Failed to reject version: ${error.message}`, "error");
+  }
+}
+
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
+window.showVersionDetail = showVersionDetail;
 window.loadVersionDetail = loadVersionDetail;
 window.loadVersionStages = loadVersionStages;
 window.loadStageContent = loadStageContent;
 window.refreshVersionDetail = refreshVersionDetail;
+window.rejectVersion = rejectVersion;
 
