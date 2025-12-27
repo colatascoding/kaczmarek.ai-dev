@@ -1,0 +1,296 @@
+name: "Execute Features from Review"
+version: "1.0.0"
+description: "Workflow to implement features from review document's Next Steps section"
+
+# Follow-up workflows based on outcomes
+followUpWorkflows:
+  - workflowId: "review-self"
+    name: "Review Self"
+    description: "Run a new review to identify new tasks"
+    reason: "No tasks found - run a review to identify new work"
+    onOutcome: ["no-tasks"]
+  - workflowId: "review-self"
+    name: "Review Self"
+    description: "Start a new review cycle"
+    reason: "All tasks completed - start a new review"
+    onOutcome: ["all-complete"]
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run execute-features"
+    params:
+      - name: "maxTasks"
+        type: "number"
+        default: 3
+        description: "Maximum number of tasks to implement"
+      - name: "skipTests"
+        type: "boolean"
+        default: false
+        description: "Skip test execution"
+
+steps:
+  # Step 1: Scan repository
+  - id: "scan"
+    module: "review"
+    action: "scan-repository"
+    description: "Scan repository structure"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "summary"
+        type: "object"
+    onSuccess: "find-version"
+    onFailure: "error-handler"
+
+  # Step 2: Find current version
+  - id: "find-version"
+    module: "review"
+    action: "find-current-version"
+    description: "Find current review and progress files"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      reviewDir: "review"
+      progressDir: "progress"
+    outputs:
+      - name: "versionTag"
+        type: "string"
+      - name: "reviewFile"
+        type: "string"
+      - name: "progressFile"
+        type: "string"
+    onSuccess:
+      condition: "{{ steps.find-version.outputs.found }}"
+      then: "read-review"
+      else: "error-no-version"
+    onFailure: "error-handler"
+
+  # Step 3: Read review file
+  - id: "read-review"
+    module: "review"
+    action: "read-review"
+    description: "Read current review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "read-progress"
+    onFailure: "error-handler"
+
+  # Step 4: Read progress file
+  - id: "read-progress"
+    module: "review"
+    action: "read-progress"
+    description: "Read current progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "extract-next-steps"
+    onFailure: "extract-next-steps"  # Continue even if progress doesn't exist
+
+  # Step 5: Extract next steps from review
+  - id: "extract-next-steps"
+    module: "implementation"
+    action: "extract-next-steps"
+    description: "Extract next steps from review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "nextSteps"
+        type: "array"
+      - name: "count"
+        type: "number"
+    onSuccess:
+      condition: "{{ steps.extract-next-steps.outputs.count > 0 }}"
+      then: "create-plan"
+      else: "check-all-complete"
+    onFailure: "error-handler"
+
+  # Step 6: Create implementation plan
+  - id: "create-plan"
+    module: "implementation"
+    action: "create-plan"
+    description: "Create implementation plan from next steps"
+    inputs:
+      nextSteps: "{{ steps.extract-next-steps.outputs.nextSteps }}"
+      maxTasks: "{{ trigger.maxTasks || 3 }}"
+    outputs:
+      - name: "plan"
+        type: "object"
+    onSuccess: "generate-prompt"
+    onFailure: "error-handler"
+
+  # Step 7: Generate implementation prompt
+  - id: "generate-prompt"
+    module: "implementation"
+    action: "generate-implementation-prompt"
+    description: "Generate prompt for implementing features"
+    inputs:
+      summary: "{{ steps.scan.outputs.summary }}"
+      reviewContent: "{{ steps.read-review.outputs.content }}"
+      progressContent: "{{ steps.read-progress.outputs.content }}"
+      nextSteps: "{{ steps.extract-next-steps.outputs.nextSteps }}"
+      versionTag: "{{ steps.find-version.outputs.versionTag }}"
+    outputs:
+      - name: "prompt"
+        type: "string"
+    onSuccess: "launch-agent"
+    onFailure: "error-handler"
+
+  # Step 8: Launch background agent
+  - id: "launch-agent"
+    module: "agent"
+    action: "launch-background"
+    description: "Launch background agent to implement features"
+    inputs:
+      prompt: "{{ steps.generate-prompt.outputs.prompt }}"
+      tasks: "{{ steps.create-plan.outputs.plan.tasks }}"
+      cwd: "{{ workflow.cwd }}"
+      agentType: "cursor"
+      maxIterations: "{{ trigger.maxTasks || 3 }}"
+    outputs:
+      - name: "agentTaskId"
+        type: "string"
+      - name: "status"
+        type: "string"
+    onSuccess: "check-git-before"
+    onFailure: "error-handler"
+
+  # Step 9: Check git status before implementation
+  - id: "check-git-before"
+    module: "implementation"
+    action: "check-git-status"
+    description: "Check git status before implementation"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "files"
+        type: "array"
+      - name: "hasChanges"
+        type: "boolean"
+    onSuccess: "append-progress"
+    onFailure: "append-progress"  # Continue even if git check fails
+
+  # Step 10: Append to progress file
+  - id: "append-progress"
+    module: "review"
+    action: "append-progress"
+    description: "Append execution workflow entry to progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+      entry: |
+        **Execution Workflow Execution**
+        
+        - Extracted {{ steps.extract-next-steps.outputs.count }} next steps from review
+        - Created implementation plan with {{ steps.create-plan.outputs.plan.totalTasks }} tasks
+        - Generated implementation prompt
+        - Launched background agent (task ID: {{ steps.launch-agent.outputs.agentTaskId }})
+        
+        Background agent is processing the implementation tasks. Check status with:
+        `kad agent status {{ steps.launch-agent.outputs.agentTaskId }}`
+    onSuccess: "complete"
+    onFailure: "complete"  # Don't fail if progress file doesn't exist
+
+  # Step 11: Check if all tasks are complete
+  - id: "check-all-complete"
+    module: "review"
+    action: "check-all-tasks-complete"
+    description: "Check if all tasks in review are completed"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "allComplete"
+        type: "boolean"
+      - name: "totalTasks"
+        type: "number"
+      - name: "completedTasks"
+        type: "number"
+    onSuccess:
+      condition: "{{ steps.check-all-complete.outputs.allComplete }}"
+      then: "create-next-version"
+      else: "no-tasks"
+    onFailure: "no-tasks"
+
+  # Step 11a: Create next version if all tasks complete
+  - id: "create-next-version"
+    module: "review"
+    action: "create-next-version"
+    description: "Create next version since all tasks are complete"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      currentVersionTag: "{{ steps.find-version.outputs.versionTag }}"
+    outputs:
+      - name: "versionTag"
+        type: "string"
+      - name: "reviewFile"
+        type: "string"
+      - name: "progressFile"
+        type: "string"
+    onSuccess: "log-version-created"
+    onFailure: "no-tasks"
+
+  # Step 11b: Log version creation
+  - id: "log-version-created"
+    module: "system"
+    action: "log"
+    description: "Log that new version was created"
+    inputs:
+      message: "All tasks completed! Created new version: {{ steps.create-next-version.outputs.versionTag }}. Review file: {{ steps.create-next-version.outputs.reviewFile }}"
+      level: "info"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 11c: No tasks found (but not all complete)
+  - id: "no-tasks"
+    module: "system"
+    action: "log"
+    description: "Log that no tasks were found"
+    inputs:
+      message: "No uncompleted tasks found in review file. All tasks may be completed, or review file needs updating."
+      level: "warn"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 12: No version files
+  - id: "error-no-version"
+    module: "system"
+    action: "log"
+    description: "Log that version files are missing"
+    inputs:
+      message: "No version review files found. Please create review/versionX-Y.md first."
+      level: "error"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 13: Error handler
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 14: Complete
+  - id: "complete"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify completion"
+    inputs:
+      status: "completed"
+      executionId: "{{ workflow.executionId }}"
+    onSuccess: "log-complete"
+    onFailure: "log-complete"
+
+  - id: "log-complete"
+    module: "system"
+    action: "log"
+    description: "Final log"
+    inputs:
+      message: "Execution workflow completed. Background agent launched. The agent will process the implementation tasks in the background."
+      level: "info"
+

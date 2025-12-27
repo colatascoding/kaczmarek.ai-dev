@@ -1,0 +1,196 @@
+name: "Review Self (kaczmarek.ai-dev)"
+version: "1.0.0"
+description: "Review workflow that uses kaczmarek.ai-dev methodology to review itself"
+interactionMode: "automated"
+
+triggers:
+  - type: "cli"
+    command: "kad workflow run review-self"
+    params:
+      - name: "version"
+        type: "string"
+        description: "Version tag (e.g., version0-1). If not provided, uses latest version."
+      - name: "days"
+        type: "number"
+        default: 7
+        description: "Number of days to analyze changes"
+
+steps:
+  # Step 1: Scan repository
+  - id: "scan"
+    module: "review"
+    action: "scan-repository"
+    description: "Scan repository structure using kad scan"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+    outputs:
+      - name: "summary"
+        type: "object"
+    onSuccess: "find-version"
+    onFailure: "error-handler"
+
+  # Step 2: Find current version files
+  - id: "find-version"
+    module: "review"
+    action: "find-current-version"
+    description: "Find current review and progress files"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      reviewDir: "review"
+      progressDir: "progress"
+    outputs:
+      - name: "versionTag"
+        type: "string"
+      - name: "reviewFile"
+        type: "string"
+      - name: "progressFile"
+        type: "string"
+    onSuccess:
+      condition: "{{ steps.find-version.outputs.found }}"
+      then: "analyze-changes"
+      else: "create-version"
+    onFailure: "error-handler"
+
+  # Step 3: Analyze recent changes
+  - id: "analyze-changes"
+    module: "review"
+    action: "analyze-changes"
+    description: "Analyze recent git changes"
+    inputs:
+      cwd: "{{ workflow.cwd }}"
+      days: "{{ trigger.days || 7 }}"
+    outputs:
+      - name: "commits"
+        type: "array"
+      - name: "changedFiles"
+        type: "array"
+      - name: "commitCount"
+        type: "number"
+    onSuccess: "read-review"
+    onFailure: "error-handler"
+
+  # Step 4: Read existing review file
+  - id: "read-review"
+    module: "review"
+    action: "read-review"
+    description: "Read current review file"
+    inputs:
+      reviewFile: "{{ steps.find-version.outputs.reviewFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "read-progress"
+    onFailure: "error-handler"
+
+  # Step 5: Read existing progress file
+  - id: "read-progress"
+    module: "review"
+    action: "read-progress"
+    description: "Read current progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+    outputs:
+      - name: "content"
+        type: "string"
+    onSuccess: "generate-prompt"
+    onFailure: "generate-prompt"  # Continue even if progress file doesn't exist
+
+  # Step 6: Generate review update prompt
+  - id: "generate-prompt"
+    module: "review"
+    action: "generate-review-prompt"
+    description: "Generate prompt for updating review/progress"
+    inputs:
+      summary: "{{ steps.scan.outputs.summary }}"
+      changes: "{{ steps.analyze-changes.outputs }}"
+      reviewContent: "{{ steps.read-review.outputs.content || '' }}"
+      progressContent: "{{ steps.read-progress.outputs.content || '' }}"
+      versionTag: "{{ steps.find-version.outputs.versionTag }}"
+    outputs:
+      - name: "prompt"
+        type: "string"
+    onSuccess: "log-prompt"
+    onFailure: "error-handler"
+
+  # Step 7: Log the prompt (for user to use with AI)
+  - id: "log-prompt"
+    module: "system"
+    action: "log"
+    description: "Log the generated prompt"
+    inputs:
+      message: "Review prompt generated. Use this with Cursor Chat or AI assistant to update review/progress files."
+      level: "info"
+    onSuccess: "save-prompt"
+    onFailure: "error-handler"
+
+  # Step 8: Save prompt to file
+  - id: "save-prompt"
+    module: "system"
+    action: "log"
+    description: "Save prompt for later use"
+    inputs:
+      message: "Prompt saved. Check output above or use: kad progress"
+      level: "info"
+    onSuccess: "append-progress"
+    onFailure: "error-handler"
+
+  # Step 9: Append entry to progress file
+  - id: "append-progress"
+    module: "review"
+    action: "append-progress"
+    description: "Append review workflow execution to progress file"
+    inputs:
+      progressFile: "{{ steps.find-version.outputs.progressFile }}"
+      entry: |
+        **Review Workflow Execution**
+        
+        - Scanned repository structure
+        - Analyzed {{ steps.analyze-changes.outputs.commitCount }} commits
+        - Found {{ steps.analyze-changes.outputs.fileCount }} changed files
+        - Generated review update prompt
+        
+        Next steps: Use the generated prompt with Cursor Chat to update review/progress files.
+    onSuccess: "complete"
+    onFailure: "complete"  # Don't fail if progress file doesn't exist
+
+  # Step 10: Create version files if they don't exist
+  - id: "create-version"
+    module: "system"
+    action: "log"
+    description: "Log that version files need to be created"
+    inputs:
+      message: "No version files found. Please create review/versionX-Y.md and progress/versionX-Y.md first."
+      level: "warn"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 11: Error handler
+  - id: "error-handler"
+    module: "system"
+    action: "handle-error"
+    description: "Handle errors"
+    inputs:
+      error: "{{ workflow.error }}"
+      step: "{{ workflow.currentStep }}"
+    onSuccess: "complete"
+    onFailure: "complete"
+
+  # Step 12: Complete
+  - id: "complete"
+    module: "system"
+    action: "notify-completion"
+    description: "Notify completion"
+    inputs:
+      status: "{{ workflow.status }}"
+      executionId: "{{ workflow.executionId }}"
+    onSuccess: "log-complete"
+    onFailure: "log-complete"
+
+  - id: "log-complete"
+    module: "system"
+    action: "log"
+    description: "Final log"
+    inputs:
+      message: "Review workflow completed. Use 'kad progress' to get the review prompt, or check the generated prompt above."
+      level: "info"
+

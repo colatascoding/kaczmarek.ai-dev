@@ -1,0 +1,20 @@
+{
+  "name": "Review Self",
+  "id": "execute-features",
+  "category": "implementation",
+  "subcategory": "execute-features",
+  "type": "workflow",
+  "version": "1.0.0",
+  "description": "Start a new review cycle",
+  "tags": [
+    "features",
+    "agents",
+    "automation"
+  ],
+  "created": "2025-12-27",
+  "updated": "2025-12-27",
+  "source": "migration",
+  "files": [
+    "execute-features.yaml"
+  ]
+}
