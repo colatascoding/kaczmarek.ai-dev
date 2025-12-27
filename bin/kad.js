@@ -21,6 +21,7 @@ const cmdRulesCheck = require("./commands/rules-check");
 const cmdRulesGenerate = require("./commands/rules-generate");
 const cmdOnboard = require("./commands/onboard");
 const cmdWorkflow = require("./commands/workflow");
+const cmdLibrary = require("./commands/library");
 const cmdApi = require("./commands/api");
 const cmdAgent = require("./commands/agent");
 const cmdData = require("./commands/data");
@@ -62,6 +63,9 @@ function main() {
     case "workflow":
       cmdWorkflow(rest);
       return;
+    case "library":
+      cmdLibrary(rest);
+      return;
     case "api":
       cmdApi(rest);
       break;
@@ -91,6 +95,7 @@ function main() {
           "  kad onboard              Interactive onboarding wizard to set up your project.",
           "  kad workflow             Workflow orchestration commands (list, run, status, validate, show).",
           "  kad agent                Agent management commands (status, list, process).",
+          "  kad library              Library management commands (workflows, dashboards, templates).",
           "  kad api [start] [port]    Start web frontend API server (default port: 3000).",
           "  kad data delete [--all|--db|--agents]  Delete data files (database, agent queue, or all).",
           ""
