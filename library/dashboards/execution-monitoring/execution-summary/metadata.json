@@ -1,0 +1,13 @@
+{
+  "name": "Execution Summary Dashboard",
+  "id": "execution-summary",
+  "category": "execution-monitoring",
+  "subcategory": "execution-summary",
+  "type": "dashboard",
+  "version": "1.0.0",
+  "description": "Summary of recent workflow executions",
+  "tags": ["execution", "monitoring", "summary"],
+  "created": "2025-12-27",
+  "updated": "2025-12-27"
+}
+

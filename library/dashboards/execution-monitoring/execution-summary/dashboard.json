@@ -1,0 +1,34 @@
+{
+  "name": "Execution Summary Dashboard",
+  "version": "1.0.0",
+  "description": "Summary of recent workflow executions",
+  "widgets": [
+    {
+      "id": "recent-executions",
+      "type": "execution-summary",
+      "title": "Recent Executions",
+      "options": {
+        "limit": 10
+      }
+    },
+    {
+      "id": "execution-metric",
+      "type": "metric",
+      "title": "Total Executions",
+      "options": {
+        "metric": "execution-count",
+        "label": "Total Executions"
+      }
+    },
+    {
+      "id": "workflow-metric",
+      "type": "metric",
+      "title": "Total Workflows",
+      "options": {
+        "metric": "workflow-count",
+        "label": "Total Workflows"
+      }
+    }
+  ]
+}
+

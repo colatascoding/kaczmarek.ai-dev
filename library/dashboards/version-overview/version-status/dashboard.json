@@ -1,0 +1,29 @@
+{
+  "name": "Version Status Dashboard",
+  "version": "1.0.0",
+  "description": "Overview of current version status and stages",
+  "widgets": [
+    {
+      "id": "current-version",
+      "type": "version-status",
+      "title": "Current Version",
+      "options": {}
+    },
+    {
+      "id": "stage-progress",
+      "type": "stage-progress",
+      "title": "Stage Progress",
+      "options": {}
+    },
+    {
+      "id": "version-workflows",
+      "type": "workflow-list",
+      "title": "Version Workflows",
+      "options": {
+        "source": "version-specific",
+        "limit": 10
+      }
+    }
+  ]
+}
+

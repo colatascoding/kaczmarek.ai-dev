@@ -27,15 +27,81 @@ function renderWorkflows(workflows) {
     return;
   }
   
-  container.innerHTML = workflows.map(wf => {
+  // Group workflows by source
+  const bySource = {
+    active: [],
+    library: [],
+    "version-specific": []
+  };
+  
+  workflows.forEach(wf => {
+    const source = wf.source || "active";
+    if (!bySource[source]) bySource[source] = [];
+    bySource[source].push(wf);
+  });
+  
+  // Build HTML with sections
+  let html = "";
+  
+  // Active workflows
+  if (bySource.active.length > 0) {
+    html += `<div class="workflow-section" style="margin-bottom: 2rem;">
+      <h3 style="margin-bottom: 1rem; color: var(--text); font-size: 1.1rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">
+        Active Workflows (${bySource.active.length})
+      </h3>
+      ${renderWorkflowList(bySource.active)}
+    </div>`;
+  }
+  
+  // Library workflows
+  if (bySource.library.length > 0) {
+    html += `<div class="workflow-section" style="margin-bottom: 2rem;">
+      <h3 style="margin-bottom: 1rem; color: var(--text); font-size: 1.1rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">
+        📚 Library Workflows (${bySource.library.length})
+      </h3>
+      ${renderWorkflowList(bySource.library)}
+    </div>`;
+  }
+  
+  // Version-specific workflows
+  if (bySource["version-specific"].length > 0) {
+    html += `<div class="workflow-section" style="margin-bottom: 2rem;">
+      <h3 style="margin-bottom: 1rem; color: var(--text); font-size: 1.1rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">
+        🔖 Version-Specific Workflows (${bySource["version-specific"].length})
+      </h3>
+      ${renderWorkflowList(bySource["version-specific"])}
+    </div>`;
+  }
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Render a list of workflows
+ */
+function renderWorkflowList(workflows) {
+  return workflows.map(wf => {
     const mode = wf.automationMode || "human-in-the-loop";
     const modeLabel = mode === "automated" ? "Automated" : (mode === "hybrid" ? "Hybrid" : "Human in the loop");
+    const source = wf.source || "active";
+    const sourceLabel = source === "library" ? "📚 Library" : (source === "version-specific" ? "🔖 Version" : "📁 Active");
+    
+    // Get category from library item path
+    let categoryBadge = "";
+    if (wf.libraryItem) {
+      const parts = wf.libraryItem.split("/");
+      if (parts.length >= 2) {
+        const category = parts[1]; // e.g., "implementation", "review", "common"
+        categoryBadge = `<span class="badge" style="background: var(--primary-light); color: var(--primary); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">${category}</span>`;
+      }
+    }
     
     return `
     <div class="list-item" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">
       <div class="list-item-header">
-        <div class="list-item-title">${wf.name}</div>
+        <div class="list-item-title">${wf.name}${categoryBadge}</div>
         <div class="list-item-meta">
+          <span class="source-badge" style="background: var(--bg-secondary); color: var(--text); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-right: 0.5rem;">${sourceLabel}</span>
           <span class="automation-badge automation-${mode}">${modeLabel}</span>
           ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
           ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
@@ -47,6 +113,8 @@ function renderWorkflows(workflows) {
       ${wf.description ? `<div class="list-item-summary">${wf.description}</div>` : ""}
       <div class="list-item-body">
         <p><strong>ID:</strong> ${wf.id}</p>
+        <p><strong>Source:</strong> ${sourceLabel}</p>
+        ${wf.libraryItem ? `<p><strong>Library:</strong> ${wf.libraryItem}</p>` : ""}
         <p><strong>Mode:</strong> ${modeLabel}</p>
         ${wf.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${wf.versionTag}</span></p>` : ""}
         ${wf.executionCount > 0 ? `<p><strong>Executions:</strong> ${wf.executionCount}</p>` : ""}
