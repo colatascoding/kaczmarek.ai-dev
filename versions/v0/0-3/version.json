@@ -1,0 +1,53 @@
+{
+  "version": "0-3",
+  "major": 0,
+  "minor": 3,
+  "type": "minor",
+  "status": "planning",
+  "started": "2025-12-27",
+  "stages": {
+    "plan": {
+      "status": "in-progress",
+      "startedAt": "2025-12-27"
+    },
+    "implement": {
+      "status": "pending"
+    },
+    "test": {
+      "status": "pending"
+    },
+    "review": {
+      "status": "pending"
+    }
+  },
+  "objectives": [
+    "Complete library system infrastructure",
+    "Implement version folder structure",
+    "Enhanced module system",
+    "User experience and onboarding improvements",
+    "Stabilization and quality improvements"
+  ],
+  "estimatedDuration": "6-8 weeks",
+  "complexity": "high",
+  "previousVersion": "0-2",
+  "metadata": {
+    "createdBy": "kaczmarek.ai-dev",
+    "proposalDocuments": [
+      "docs/WORKFLOW_LIBRARY_PROPOSAL.md",
+      "docs/VERSION_FOLDER_STRUCTURE_PROPOSAL.md"
+    ],
+    "keyFeatures": [
+      "Library system (workflows, dashboards, templates)",
+      "Folder-based version structure",
+      "New modules (refactoring, documentation, bug-fixing)",
+      "Onboarding wizard",
+      "80%+ test coverage"
+    ],
+    "risks": [
+      "Migration complexity from flat to folder structure",
+      "Backward compatibility challenges",
+      "Extensive testing required",
+      "User adoption of new structure"
+    ]
+  }
+}
