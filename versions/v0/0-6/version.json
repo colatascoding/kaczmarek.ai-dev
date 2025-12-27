@@ -1,0 +1,77 @@
+{
+  "version": "0-6",
+  "majorVersion": 0,
+  "minorVersion": 6,
+  "status": "planning",
+  "startDate": "2025-12-27",
+  "completionDate": null,
+  "focus": "Production Readiness & End-to-End Usability",
+  "goals": [
+    "Complete dashboard system with real-time data",
+    "Validate all workflows end-to-end",
+    "Comprehensive documentation (user + developer)",
+    "Production hardening (error handling, monitoring)",
+    "Developer experience improvements"
+  ],
+  "previousVersion": "0-5",
+  "nextVersion": null,
+  "estimatedDuration": "7-12 weeks",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Dashboard Core",
+      "weeks": "1-2"
+    },
+    {
+      "phase": 2,
+      "name": "Workflow Validation",
+      "weeks": "2-3"
+    },
+    {
+      "phase": 3,
+      "name": "Documentation Sprint",
+      "weeks": "3-4"
+    },
+    {
+      "phase": 4,
+      "name": "Production Hardening",
+      "weeks": "4-6"
+    },
+    {
+      "phase": 5,
+      "name": "Polish & UX",
+      "weeks": "6-7"
+    },
+    {
+      "phase": 6,
+      "name": "Validation & Release",
+      "weeks": "7"
+    }
+  ],
+  "keyFeatures": [
+    "Dashboard system completion",
+    "End-to-end workflow validation",
+    "Documentation completion",
+    "Production hardening",
+    "Developer experience improvements"
+  ],
+  "dependencies": {
+    "internal": [
+      "Version folder structure (v0-2)",
+      "Workflow library system (v0-2)",
+      "Dashboard framework (v0-2)",
+      "Testing infrastructure (v0-2)",
+      "Workstream management (v0-2)"
+    ],
+    "external": [
+      "Cursor Cloud Agents API (optional)",
+      "Claude API (currently integrated)"
+    ]
+  },
+  "metrics": {
+    "targetTestCoverage": "80%",
+    "targetOnboardingTime": "< 15 minutes",
+    "targetWorkflowSuccessRate": "100%",
+    "targetDashboardLoadTime": "< 2 seconds"
+  }
+}
