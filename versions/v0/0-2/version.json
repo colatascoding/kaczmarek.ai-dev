@@ -3,20 +3,22 @@
   "major": 0,
   "minor": 2,
   "type": "minor",
-  "status": "in-progress",
+  "status": "rejected",
   "started": "2025-12-20",
   "stages": {
     "plan": {
-      "status": "in-progress"
+      "status": "rejected"
     },
     "implement": {
-      "status": "in-progress"
+      "status": "rejected"
     },
     "test": {
-      "status": "pending"
+      "status": "rejected"
     },
     "review": {
-      "status": "in-progress"
+      "status": "rejected"
     }
-  }
+  },
+  "rejected": "2025-12-27",
+  "rejectionReason": "a"
 }

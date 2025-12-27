@@ -75,13 +75,17 @@ function renderVersionsList(versions) {
           </div>
         ` : ""}
         
-        ${(version.status === "in-progress" || version.status === "In Progress") ? `
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-            <button class="btn btn-danger" onclick="rejectVersion('${version.tag}')" style="width: 100%;">
-              Reject Version
-            </button>
-          </div>
-        ` : ""}
+        ${(() => {
+          const status = (version.status || "").toLowerCase();
+          const canReject = status === "in-progress" || (status !== "completed" && status !== "rejected" && status !== "");
+          return canReject ? `
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <button class="btn btn-danger" onclick="rejectVersion('${version.tag}')" style="width: 100%;">
+                Reject Version
+              </button>
+            </div>
+          ` : "";
+        })()}
       </div>
     `;
   }).join("");
@@ -143,6 +147,28 @@ async function loadVersionDetail(versionTag) {
     
     const displayTag = versionData?.tag || cleanTag;
     document.getElementById("version-detail-title").textContent = `Version ${displayTag}`;
+    
+    // Store current version tag for later use
+    window.currentVersionTag = displayTag;
+    
+    // Add reject button to header if version is in-progress
+    const viewActions = document.querySelector("#version-detail-view .view-actions");
+    if (viewActions) {
+      const existingRejectBtn = viewActions.querySelector(".btn-reject-version");
+      if (existingRejectBtn) {
+        existingRejectBtn.remove();
+      }
+      
+      const status = (versionData.status || "").toLowerCase();
+      // Show reject button for any status that's not completed or rejected
+      if (status !== "completed" && status !== "rejected" && status !== "") {
+        const rejectBtn = document.createElement("button");
+        rejectBtn.className = "btn btn-danger btn-reject-version";
+        rejectBtn.textContent = "🚫 Reject Version";
+        rejectBtn.onclick = () => rejectVersion(displayTag);
+        viewActions.insertBefore(rejectBtn, viewActions.firstChild);
+      }
+    }
     
     // Update stage nav statuses
     if (stagesData && Array.isArray(stagesData)) {
