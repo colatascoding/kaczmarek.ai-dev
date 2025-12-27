@@ -45,20 +45,34 @@ async function renderPlanStage(versionTag, container) {
         </div>
         
         ${agentStatus ? `
-          <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="background: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary-light)" : agentStatus.status === "completed" ? "var(--success-light, #e8f5e9)" : "var(--error-bg, #fee)"}; border-left: 4px solid ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success, #4caf50)" : "var(--error)"}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-              <h4 style="margin: 0; color: var(--primary);">Planning Agent Status</h4>
-              <span style="padding: 0.25rem 0.75rem; background: var(--primary); color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
-                ${agentStatus.status === "running" ? "Running" : agentStatus.status === "completed" ? "Completed" : agentStatus.status === "failed" ? "Failed" : "Unknown"}
+              <div>
+                <h4 style="margin: 0; color: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success)" : "var(--error)"};">
+                  ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "🤖 Planning Agent Running" : agentStatus.status === "completed" ? "✓ Planning Agent Completed" : "✗ Planning Agent Failed"}
+                </h4>
+                ${agentStatus.id ? `
+                  <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                    Agent ID: <code>${agentStatus.id.substring(0, 16)}...</code>
+                    ${agentStatus.executionId ? ` • <a href="#" onclick="event.preventDefault(); switchView('executions'); setTimeout(() => showExecutionDetailsV2('${agentStatus.executionId}'), 100);" style="color: var(--primary); text-decoration: underline;">View Execution</a>` : ""}
+                  </p>
+                ` : ""}
+              </div>
+              <span style="padding: 0.25rem 0.75rem; background: ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? "var(--primary)" : agentStatus.status === "completed" ? "var(--success)" : "var(--error)"}; color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
+                ${agentStatus.status === "running" || agentStatus.status === "CREATING" ? "Running" : agentStatus.status === "processing" ? "Processing" : agentStatus.status === "completed" ? "Completed" : agentStatus.status === "failed" ? "Failed" : agentStatus.status || "Unknown"}
               </span>
             </div>
-            ${agentStatus.status === "running" ? `
+            ${agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing" ? `
               <div style="margin-top: 0.5rem;">
                 <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
                   <div style="height: 100%; width: 100%; background: var(--primary); animation: pulse 2s infinite;"></div>
                 </div>
                 <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
-                  AI agent is generating the plan. This may take a few minutes...
+                  AI agent is analyzing your project and generating goals. This may take a few minutes...
+                  <br>
+                  <a href="#" onclick="event.preventDefault(); switchView('executions');" style="color: var(--primary); text-decoration: underline; font-size: 0.75rem;">
+                    View all executions →
+                  </a>
                 </p>
               </div>
             ` : agentStatus.status === "completed" ? `

@@ -1,0 +1,19 @@
+{
+  "version": "0-5",
+  "type": "minor",
+  "status": "rejected",
+  "started": "2025-12-27",
+  "description": "",
+  "goals": [],
+  "stages": {
+    "1plan": {
+      "status": "rejected",
+      "startedAt": "2025-12-27T15:35:17.808Z"
+    },
+    "2implement": {
+      "status": "rejected",
+      "startedAt": "2025-12-27T15:35:17.809Z"
+    }
+  },
+  "rejected": "2025-12-27"
+}

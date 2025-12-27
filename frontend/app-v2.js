@@ -66,6 +66,9 @@ async function switchView(viewName) {
     case "library":
       if (window.loadLibraryV2) await window.loadLibraryV2();
       break;
+    case "executions":
+      if (window.loadExecutionsV2) await window.loadExecutionsV2();
+      break;
   }
 }
 
