@@ -54,12 +54,14 @@ module.exports = defineConfig({
     // },
   ],
   
-  // Web server configuration (optional - can start server before tests)
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://localhost:3100',
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120000,
-  // },
+  // Web server configuration - automatically start server before tests
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3100',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  },
 });
 
