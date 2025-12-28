@@ -10,6 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:ui": "jest frontend/__tests__/planning-agent-status-rendering.test.js",
+    "test:ui:watch": "jest --watch frontend/__tests__/planning-agent-status-rendering.test.js",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "api": "node bin/kad.js api start",

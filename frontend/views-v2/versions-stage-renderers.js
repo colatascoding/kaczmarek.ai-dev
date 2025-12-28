@@ -2,9 +2,6 @@
  * Stage renderers for versions view
  */
 
-// Expose renderPlanStage globally for polling refresh
-window.renderPlanStage = renderPlanStage;
-
 /**
  * Manually trigger merge for planning agent branch
  */

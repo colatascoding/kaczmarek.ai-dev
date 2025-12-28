@@ -46,8 +46,9 @@ describe("Planning Agent Polling", () => {
     mockLoadVersionsV2.mockReset();
     planningAgentIntervals = new Map();
     
-    // Ensure window.apiCall is properly set
+    // Ensure window.apiCall and window.showNotification are properly set
     global.window.apiCall = mockApiCall;
+    global.window.showNotification = mockShowNotification;
     
     // Mock the functions (simplified version)
     stopPlanningAgentPolling = (versionTag) => {
@@ -64,9 +65,12 @@ describe("Planning Agent Polling", () => {
       
       const interval = setInterval(async () => {
         try {
-          // Ensure window.apiCall is available
+          // Ensure window.apiCall and window.showNotification are available
           if (!window.apiCall) {
             window.apiCall = mockApiCall;
+          }
+          if (!window.showNotification) {
+            window.showNotification = mockShowNotification;
           }
           const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
           
