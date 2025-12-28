@@ -175,7 +175,10 @@ async function renderPlanStage(versionTag, container) {
     const goals = details.goals || [];
     const totalGoals = details.totalGoals || 0;
     const completedGoals = details.completedGoals || 0;
-    const progress = summary.progress || 0;
+    // Ensure progress is a number, not an object
+    const progress = typeof summary.progress === 'number' ? summary.progress : 
+                    (typeof summary.progress === 'object' && summary.progress !== null ? 0 : 
+                     (parseInt(summary.progress) || 0));
     
     container.innerHTML = `
       <div class="stage-content">
@@ -188,7 +191,7 @@ async function renderPlanStage(versionTag, container) {
                 <span style="font-weight: 600;">${progress}%</span>
               </div>
               <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                <div style="height: 100%; width: ${progress}%; background: var(--primary); transition: width 0.3s;"></div>
+                <div style="height: 100%; width: ${Math.min(100, Math.max(0, progress))}%; background: var(--primary); transition: width 0.3s;"></div>
               </div>
             </div>
           </div>
@@ -231,8 +234,9 @@ async function renderPlanStage(versionTag, container) {
                 </h4>
                 ${agentStatus.id ? `
                   <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
-                    Agent ID: <code>${agentStatus.id.substring(0, 16)}...</code>
-                    ${agentStatus.executionId ? ` • <a href="#" onclick="event.preventDefault(); switchView('executions'); setTimeout(() => showExecutionDetailsV2('${agentStatus.executionId}'), 100);" style="color: var(--primary); text-decoration: underline;">View Execution</a>` : ""}
+                    Agent ID: <code>${win.escapeHtml ? win.escapeHtml(agentStatus.id.substring(0, 16)) : agentStatus.id.substring(0, 16)}...</code>
+                    ${agentStatus.cloudAgentId ? ` • <a href="https://cursor.com/agents?id=${encodeURIComponent(agentStatus.cloudAgentId)}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: underline;">View on Cursor ↗</a>` : ""}
+                    ${agentStatus.executionId ? ` • <a href="#" onclick="event.preventDefault(); switchView('executions'); setTimeout(() => showExecutionDetailsV2('${win.escapeHtml ? win.escapeHtml(agentStatus.executionId) : agentStatus.executionId}'), 100);" style="color: var(--primary); text-decoration: underline;">View Execution</a>` : ""}
                   </p>
                 ` : ""}
                 ${agentStatus.lastSynced ? `
