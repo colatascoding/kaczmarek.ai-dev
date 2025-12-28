@@ -523,6 +523,46 @@ async function refreshVersionDetail(versionTag) {
   }
 }
 
+/**
+ * Reject a version
+ */
+async function rejectVersion(versionTag) {
+  try {
+    const cleanTag = cleanVersionTagLocal(versionTag);
+    const confirmed = confirm(`Are you sure you want to reject version ${cleanTag}? This action cannot be undone.`);
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    const response = await window.apiCall(`/api/versions/${cleanTag}/reject`, {
+      method: 'POST'
+    });
+    
+    if (response.success) {
+      window.showNotification(`Version ${cleanTag} rejected successfully`, "success");
+      
+      // Reload versions list
+      if (window.loadVersionsV2) {
+        await window.loadVersionsV2();
+      }
+      
+      // If viewing this version, navigate away
+      const currentVersionTag = getCurrentVersionTag();
+      if (currentVersionTag === cleanTag || currentVersionTag === `version${cleanTag}`) {
+        if (window.switchView) {
+          window.switchView("versions");
+        }
+      }
+    } else {
+      window.showNotification(`Failed to reject version: ${response.error || "Unknown error"}`, "error");
+    }
+  } catch (error) {
+    console.error("Failed to reject version:", error);
+    window.showNotification(`Failed to reject version: ${error.message || "Unknown error"}`, "error");
+  }
+}
+
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
 // showVersionDetail is already defined above, just expose it

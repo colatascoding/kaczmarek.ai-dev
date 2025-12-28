@@ -586,6 +586,92 @@ function closeModalV2() {
   }
 }
 
+/**
+ * Attach event listeners for execution-related actions
+ */
+function attachExecutionEventListeners() {
+  // Execution card clicks
+  document.querySelectorAll("[data-execution-id]").forEach(element => {
+    if (element.dataset.action === "show-details") {
+      element.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const executionId = element.dataset.executionId;
+        if (executionId && window.showExecutionDetailsV2) {
+          window.showExecutionDetailsV2(executionId);
+        }
+      });
+    } else {
+      element.addEventListener("click", () => {
+        const executionId = element.dataset.executionId;
+        if (executionId && window.showExecutionDetailsV2) {
+          window.showExecutionDetailsV2(executionId);
+        }
+      });
+    }
+  });
+  
+  // Refresh button
+  document.querySelectorAll("[data-action='refresh-executions']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (window.loadExecutionsV2) {
+        window.loadExecutionsV2();
+      }
+    });
+  });
+  
+  // Agent detail buttons
+  document.querySelectorAll("[data-action='show-agent-details']").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const agentId = btn.dataset.agentId;
+      if (agentId && window.showAgentDetailsV2) {
+        window.showAgentDetailsV2(agentId);
+      }
+    });
+  });
+  
+  // Execution summary buttons
+  document.querySelectorAll("[data-action='show-execution-summary']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const executionId = btn.dataset.executionId;
+      if (executionId && window.showExecutionSummaryV2) {
+        window.showExecutionSummaryV2(executionId);
+      }
+    });
+  });
+  
+  // Copy summary buttons
+  document.querySelectorAll("[data-action='copy-execution-summary']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const executionId = btn.dataset.executionId;
+      if (executionId && window.copyExecutionSummaryV2) {
+        window.copyExecutionSummaryV2(executionId);
+      }
+    });
+  });
+  
+  // Navigate to execution links
+  document.querySelectorAll("[data-action='navigate-to-execution']").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const executionId = link.dataset.executionId;
+      if (window.closeModalV2) {
+        window.closeModalV2();
+      }
+      setTimeout(() => {
+        if (window.switchView) {
+          window.switchView("executions");
+        }
+        setTimeout(() => {
+          if (executionId && window.showExecutionDetailsV2) {
+            window.showExecutionDetailsV2(executionId);
+          }
+        }, 100);
+      }, 100);
+    });
+  });
+}
+
 // Expose globally
 window.loadExecutionsV2 = loadExecutionsV2;
 window.showExecutionDetailsV2 = showExecutionDetailsV2;
