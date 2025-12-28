@@ -47,3 +47,4 @@ This causes confusion about which renderer is being used.
 3. Test that all stages render correctly
 4. Verify technical details view works
 
+

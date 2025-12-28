@@ -83,3 +83,4 @@ Run `npm install` to install dependencies.
 The database is created automatically at `.kaczmarek-ai/workflows.db`. Make sure you have write permissions in the project directory.
 
 
+

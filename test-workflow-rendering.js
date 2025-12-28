@@ -86,3 +86,4 @@ console.log("First step ID:", stepsContainer.querySelector("h4")?.textContent);
 console.log("Test passed:", stepsContainer.children.length === 2);
 
 
+

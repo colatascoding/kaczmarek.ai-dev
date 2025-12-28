@@ -33,3 +33,4 @@ If you encounter permission errors during `npm install`, you may need to:
 2. Try running: `sudo npm install` (if on macOS/Linux)
 3. Or reinstall node_modules: `rm -rf node_modules && npm install`
 
+

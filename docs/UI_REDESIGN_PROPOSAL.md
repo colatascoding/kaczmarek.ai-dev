@@ -338,3 +338,4 @@ This provides wizard benefits without completely replacing the current UI.
 4. **Real-time updates?**
    - Recommendation: Polling initially, WebSocket later for live updates
 
+

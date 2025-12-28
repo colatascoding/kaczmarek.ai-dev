@@ -30,3 +30,4 @@ This will:
 1. Run Jest unit tests with CI-friendly settings
 2. Run Playwright E2E tests with list reporter
 
+

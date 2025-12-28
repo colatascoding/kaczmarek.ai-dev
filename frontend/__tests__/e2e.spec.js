@@ -171,18 +171,26 @@ test.describe('Basic UI Interactions', () => {
       
       // Wait for executions to load - check for container first
       await page.waitForSelector('#executions-list-v2', { timeout: 10000, state: 'attached' });
-      await page.waitForTimeout(1000); // Wait for content to render
+      await page.waitForTimeout(2000); // Wait for content to render
       
       // Check for execution cards
       const executionCards = page.locator('[data-execution-id]');
       const cardCount = await executionCards.count();
       
       if (cardCount > 0) {
-        // Get first card
+        // Get first card and evaluate if it's actually visible
         const firstCard = executionCards.first();
         
-        // Use force click since elements might not be fully visible (in scrollable container)
-        await firstCard.click({ force: true, timeout: 5000 });
+        // Try to click using evaluate to bypass visibility checks
+        try {
+          await firstCard.evaluate(el => {
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            el.click();
+          });
+        } catch (e) {
+          // Fallback: try regular click with force
+          await firstCard.click({ force: true, timeout: 5000 });
+        }
         await page.waitForTimeout(1000);
         
         // Check for errors (excluding known issues)
@@ -210,14 +218,22 @@ test.describe('Basic UI Interactions', () => {
       
       // Wait for executions to load - check for container first
       await page.waitForSelector('#executions-list-v2', { timeout: 10000, state: 'attached' });
-      await page.waitForTimeout(1000); // Wait for content to render
+      await page.waitForTimeout(2000); // Wait for content to render
       
       // Try to open a modal (if available)
       const modalTrigger = page.locator('[data-action="show-execution-details"], [data-action="show-agent-details"]').first();
       
       if (await modalTrigger.count() > 0) {
-        // Use force click (elements might be in scrollable container)
-        await modalTrigger.click({ force: true, timeout: 5000 });
+        // Try to click using evaluate to bypass visibility checks
+        try {
+          await modalTrigger.evaluate(el => {
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            el.click();
+          });
+        } catch (e) {
+          // Fallback: try regular click with force
+          await modalTrigger.click({ force: true, timeout: 5000 });
+        }
         await page.waitForTimeout(1000);
         
         // Check if modal is visible

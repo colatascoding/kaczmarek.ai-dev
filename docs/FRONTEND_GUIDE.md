@@ -151,3 +151,4 @@ The frontend can be integrated into an Electron app:
 See `docs/VISUAL_WORKFLOW_EDITOR_DESIGN.md` for more details on Electron integration.
 
 
+

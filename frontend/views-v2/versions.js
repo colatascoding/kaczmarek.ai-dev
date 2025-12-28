@@ -112,6 +112,9 @@ function renderVersionsList(versions) {
       </div>
     `;
   }).join("");
+  
+  // Attach event listeners after rendering
+  attachVersionEventListeners();
 }
 
 /**
@@ -211,6 +214,9 @@ async function loadVersionDetail(versionTag) {
       });
     }
     
+    // Attach event listeners after loading version detail
+    attachVersionEventListeners();
+    
     // Load initial stage (implement if available, otherwise first)
     const initialStage = stagesData?.find(s => s.status === "in-progress") || stagesData?.[0];
     if (initialStage) {
@@ -274,6 +280,100 @@ function cleanVersionTagLocal(versionTag) {
 }
 
 /**
+ * Attach event listeners for version-related actions
+ * Defined early so it can be called from other functions
+ */
+function attachVersionEventListeners() {
+  // Reject version buttons
+  document.querySelectorAll("[data-action='reject-version'], .btn-reject-version").forEach(btn => {
+    // Remove existing listeners to avoid duplicates
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode?.replaceChild(newBtn, btn);
+    const freshBtn = btn.parentNode?.querySelector("[data-action='reject-version'], .btn-reject-version") || newBtn;
+    
+    freshBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const versionTag = freshBtn.dataset.versionTag || 
+                        freshBtn.closest("[data-version-tag]")?.dataset.versionTag ||
+                        getCurrentVersionTag();
+      if (versionTag && window.rejectVersion) {
+        window.rejectVersion(versionTag);
+      }
+    });
+  });
+  
+  // Stage navigation buttons
+  document.querySelectorAll(".stage-nav-btn[data-stage]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const stage = btn.dataset.stage;
+      if (stage && window.showStage) {
+        window.showStage(stage);
+      }
+    });
+  });
+  
+  // Version card clicks
+  document.querySelectorAll("[data-version-tag]").forEach(card => {
+    card.addEventListener("click", (e) => {
+      // Only navigate if clicking on the card itself, not on buttons/links
+      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A' && !e.target.closest('button') && !e.target.closest('a')) {
+        const versionTag = card.dataset.versionTag;
+        if (versionTag && window.loadVersionDetail) {
+          window.loadVersionDetail(versionTag);
+        }
+      }
+    });
+  });
+  
+  // Refresh version detail button
+  document.querySelectorAll("[data-action='refresh-version-detail']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const versionTag = getCurrentVersionTag();
+      if (versionTag && window.refreshVersionDetail) {
+        window.refreshVersionDetail(versionTag);
+      }
+    });
+  });
+  
+  // Stage content refresh buttons
+  document.querySelectorAll("[data-action='refresh-stage']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const stage = btn.dataset.stage;
+      const versionTag = getCurrentVersionTag();
+      if (stage && versionTag && window.loadStageContent) {
+        window.loadStageContent(versionTag, stage);
+      }
+    });
+  });
+  
+  // Planning agent merge button
+  document.querySelectorAll("[data-action='merge-planning-branch']").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const versionTag = btn.dataset.versionTag || getCurrentVersionTag();
+      if (versionTag && window.apiCall) {
+        try {
+          const response = await window.apiCall(`/api/versions/${versionTag}/merge-planning-branch`, {
+            method: 'POST'
+          });
+          if (response.success) {
+            window.showNotification("Branch merged successfully", "success");
+            // Refresh the plan stage
+            if (window.refreshPlanStage) {
+              await window.refreshPlanStage(versionTag);
+            }
+          } else {
+            window.showNotification(`Failed to merge: ${response.error || "Unknown error"}`, "error");
+          }
+        } catch (error) {
+          console.error("Failed to merge branch:", error);
+          window.showNotification(`Failed to merge: ${error.message || "Unknown error"}`, "error");
+        }
+      }
+    });
+  });
+}
+
+/**
  * Load stage content
  */
 async function loadStageContent(versionTag, stage) {
@@ -329,6 +429,11 @@ async function loadStageContent(versionTag, stage) {
       default:
         container.innerHTML = `<p>Unknown stage: ${stage}</p>`;
     }
+    
+    // Attach event listeners after loading stage content
+    setTimeout(() => {
+      attachVersionEventListeners();
+    }, 100);
   } catch (error) {
     console.error("Failed to load stage content:", error);
     container.innerHTML = `<p style="color: var(--error);">Failed to load stage content: ${error.message}</p>`;
@@ -562,6 +667,7 @@ async function rejectVersion(versionTag) {
     window.showNotification(`Failed to reject version: ${error.message || "Unknown error"}`, "error");
   }
 }
+
 
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
