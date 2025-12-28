@@ -136,28 +136,76 @@ const joined = safeJoin(baseDir, "subdir", "file.txt");
 - Add error response examples to API documentation
 - Standardize error response format across all routes
 
-### 6. Input Validation Middleware Integration
+### 6. Input Validation Middleware Integration ✅
 
-**Status**: Ready for Integration
+**Status**: Completed
 
-**Next Steps**:
-- Apply validation middleware to key API endpoints
-- Add validation schemas for all POST/PUT endpoints
-- Document validation requirements
+**Files Created**:
+- `lib/api/validation-schemas.js` - Validation schemas for API endpoints
+
+**Files Updated**:
+- `lib/api/routes/workflows.js` - Added validation to workflow run endpoint
+- `lib/api/routes/agents.js` - Added validation and error handling to agent endpoints
+- `lib/api/routes/executions.js` - Improved error handling
+
+**Validation Schemas Created**:
+- `workflowRunSchema` - Validates workflow execution requests
+- `agentCompleteSchema` - Validates agent completion requests
+- `versionCreateSchema` - Validates version creation
+- `versionStatusUpdateSchema` - Validates version status updates
+- `planGoalsSaveSchema` - Validates plan goals
+- `decisionSubmitSchema` - Validates decision submissions
+- `workstreamCreateSchema` - Validates workstream creation
+
+**Endpoints Updated**:
+- ✅ `POST /api/workflows/{id}/run` - Validates executionMode
+- ✅ `POST /api/agents/{id}/complete` - Validates notes and other params
+- ✅ Error handling improved across all routes
+
+**Usage**:
+```javascript
+const { parseBody } = require("../middleware/validation");
+const { validateBody } = require("../../utils/validation");
+const { workflowRunSchema } = require("../validation-schemas");
+
+const body = await parseBody(req);
+const validated = validateBody(body, workflowRunSchema);
+```
 
 ## Planned Improvements
 
-### 7. Database Migration System
+### 7. Database Migration System ✅
 
-**Status**: Not Started
+**Status**: Completed
 
-**Planned Features**:
-- Versioned migration system
-- Migration runner
-- Rollback support
-- Migration history tracking
+**Files Created**:
+- `lib/db/migrations.js` - Migration system and default migrations
+- `docs/DATABASE_MIGRATIONS.md` - Migration documentation
 
-**Current State**: Database uses try/catch pattern for migrations
+**Features Implemented**:
+- ✅ Versioned migration system
+- ✅ Migration runner with tracking
+- ✅ Rollback support (limited by SQLite)
+- ✅ Migration history tracking in `schema_migrations` table
+- ✅ Automatic migration execution on database initialization
+- ✅ Replaced all try/catch migration patterns
+
+**Default Migrations**:
+- Migration 001: Add `version_tag` to workflows
+- Migration 002: Add `outcome`, `follow_up_suggestions`, `summary`, `execution_mode` to executions
+- Migration 003: Add `return_code` to step_executions
+
+**Usage**:
+```javascript
+// Migrations run automatically
+const db = new WorkflowDatabase(dbPath);
+
+// Check status
+const migrationRunner = createDefaultMigrations(db);
+const status = migrationRunner.getStatus();
+```
+
+**Documentation**: See `docs/DATABASE_MIGRATIONS.md` for complete guide
 
 ### 8. Event-Driven Agent Processing
 
