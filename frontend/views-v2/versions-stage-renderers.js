@@ -467,7 +467,20 @@ async function renderPlanStage(versionTag, container) {
 /**
  * Render implement stage
  */
+// Track active render calls to prevent concurrent requests
+const activeRenderCalls = new Map();
+
 async function renderImplementStage(versionTag, container) {
+  // Prevent concurrent calls for the same version
+  const renderKey = `implement-${versionTag}`;
+  if (activeRenderCalls.has(renderKey)) {
+    console.warn(`[Implement Stage] Render already in progress for ${versionTag}, skipping duplicate call`);
+    return;
+  }
+  
+  // Mark as active
+  activeRenderCalls.set(renderKey, true);
+  
   try {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/implement/summary`);
     const summary = summaryData.summary || {};
@@ -562,11 +575,34 @@ async function renderImplementStage(versionTag, container) {
     `;
   } catch (error) {
     console.error("Failed to render implement stage:", error);
-    container.innerHTML = `
-      <div style="padding: 2rem; text-align: center; color: var(--text-light);">
-        <p>Failed to load implement stage: ${error.message}</p>
-      </div>
-    `;
+    
+    // Don't show error if it's a resource error (likely too many requests)
+    const isResourceError = error.message && (
+      error.message.includes("ERR_INSUFFICIENT_RESOURCES") ||
+      error.message.includes("insufficient resources") ||
+      error.name === "TypeError" && error.message.includes("Failed to fetch")
+    );
+    
+    if (isResourceError) {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: var(--warning);">
+          <p>⚠️ Too many requests. Please wait a moment and refresh.</p>
+          <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">Refresh Page</button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: var(--text-light);">
+          <p>Failed to load implement stage: ${error.message}</p>
+          <button class="btn btn-secondary" onclick="window.loadStageContent && window.loadStageContent('${versionTag}', 'implement')" style="margin-top: 1rem;">Retry</button>
+        </div>
+      `;
+    }
+  } finally {
+    // Always clear the active flag after a delay to prevent immediate retries
+    setTimeout(() => {
+      activeRenderCalls.delete(renderKey);
+    }, 1000);
   }
 }
 

@@ -165,17 +165,29 @@ if (typeof window !== "undefined" && window.document) {
 /**
  * API Helper
  */
+// Track active API calls to prevent duplicate requests
+const activeApiCalls = new Map();
+
 async function apiCall(endpoint, options = {}) {
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers
-      }
-    });
-    
-    if (!response.ok) {
+  // Prevent duplicate concurrent requests for the same endpoint
+  const callKey = `${options.method || 'GET'}-${endpoint}`;
+  if (activeApiCalls.has(callKey)) {
+    // Return the existing promise instead of making a new request
+    return activeApiCalls.get(callKey);
+  }
+  
+  // Create the API call promise
+  const apiPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers
+        }
+      });
+      
+      if (!response.ok) {
       // Try to get error details from response
       let errorMessage = `API error: ${response.status} ${response.statusText}`;
       try {
@@ -194,17 +206,27 @@ async function apiCall(endpoint, options = {}) {
       throw error;
     }
     
-    return await response.json();
-  } catch (error) {
-    // Handle network errors
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      const networkError = new Error('Network error: Unable to connect to server. Please check your connection.');
-      networkError.type = 'network';
-      throw networkError;
+      return await response.json();
+    } catch (error) {
+      // Handle network errors
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        const networkError = new Error('Network error: Unable to connect to server. Please check your connection.');
+        networkError.type = 'network';
+        throw networkError;
+      }
+      console.error("API call failed:", error);
+      throw error;
+    } finally {
+      // Always remove from active calls after completion
+      activeApiCalls.delete(callKey);
     }
-    console.error("API call failed:", error);
-    throw error;
-  }
+  })();
+  
+  // Store the promise
+  activeApiCalls.set(callKey, apiPromise);
+  
+  // Return the promise
+  return apiPromise;
 }
 
 // Expose functions globally
