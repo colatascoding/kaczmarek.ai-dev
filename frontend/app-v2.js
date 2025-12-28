@@ -69,6 +69,9 @@ async function switchView(viewName) {
     case "executions":
       if (window.loadExecutionsV2) await window.loadExecutionsV2();
       break;
+    case "notifications":
+      if (window.loadNotificationsV2) await window.loadNotificationsV2();
+      break;
   }
 }
 

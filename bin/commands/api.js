@@ -9,7 +9,7 @@ function cmdApi(rest) {
   
   switch (subcommand) {
     case "start": {
-      const port = parseInt(rest[1]) || 3000;
+      const port = parseInt(rest[1]) || 3100;
       log(`Starting API server on port ${port}...`);
       log(`Open http://localhost:${port} in your browser`);
       

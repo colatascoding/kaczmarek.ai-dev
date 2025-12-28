@@ -15,7 +15,7 @@
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "api": "node bin/kad.js api start",
-    "dev": "node bin/kad.js api start 3000",
+    "dev": "node bin/kad.js api start 3100",
     "test:cloud-agent": "node bin/test-cloud-agent.js"
   },
   "keywords": [

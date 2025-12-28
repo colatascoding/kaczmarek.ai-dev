@@ -34,6 +34,10 @@
             <span class="nav-icon">⚡</span>
             <span class="nav-label">Executions</span>
           </button>
+          <button class="nav-btn-v2" data-view="notifications">
+            <span class="nav-icon">🔔</span>
+            <span class="nav-label">Notifications</span>
+          </button>
         </nav>
       </div>
     </header>
@@ -212,6 +216,11 @@
       <div id="executions-view" class="view-v2">
         <!-- Content will be loaded by loadExecutionsV2() -->
       </div>
+
+      <!-- Notifications View -->
+      <div id="notifications-view" class="view-v2">
+        <!-- Content will be loaded by loadNotificationsV2() -->
+      </div>
     </main>
   </div>
 
@@ -285,6 +294,7 @@
   <script src="/static/views-v2/wizards.js"></script>
   <script src="/static/views-v2/library.js"></script>
   <script src="/static/views-v2/executions.js"></script>
+  <script src="/static/views-v2/notifications.js"></script>
   <script src="/static/views-v2/helpers.js"></script>
   <!-- Load main app -->
   <script src="/static/app-v2.js"></script>

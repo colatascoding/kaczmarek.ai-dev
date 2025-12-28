@@ -262,19 +262,36 @@ async function loadStageContent(versionTag, stage) {
     // stageFolder is for future use
     // const stageFolder = stageMap[stage] || stage;
     
-    // Load stage-specific content
+    // Load stage-specific content using renderers from versions-stage-renderers.js
+    // These are the enhanced versions with technical details, sync history, etc.
     switch (stage) {
       case "plan":
-        await renderPlanStage(cleanTag, container);
+        if (window.renderPlanStage) {
+          await window.renderPlanStage(cleanTag, container);
+        } else {
+          container.innerHTML = `<p style="color: var(--error);">Plan stage renderer not available. Please refresh the page.</p>`;
+        }
         break;
       case "implement":
-        await renderImplementStage(cleanTag, container);
+        if (window.renderImplementStage) {
+          await window.renderImplementStage(cleanTag, container);
+        } else {
+          container.innerHTML = `<p style="color: var(--error);">Implement stage renderer not available. Please refresh the page.</p>`;
+        }
         break;
       case "test":
-        await renderTestStage(cleanTag, container);
+        if (window.renderTestStage) {
+          await window.renderTestStage(cleanTag, container);
+        } else {
+          container.innerHTML = `<p style="color: var(--error);">Test stage renderer not available. Please refresh the page.</p>`;
+        }
         break;
       case "review":
-        await renderReviewStage(cleanTag, container);
+        if (window.renderReviewStage) {
+          await window.renderReviewStage(cleanTag, container);
+        } else {
+          container.innerHTML = `<p style="color: var(--error);">Review stage renderer not available. Please refresh the page.</p>`;
+        }
         break;
       default:
         container.innerHTML = `<p>Unknown stage: ${stage}</p>`;
@@ -286,147 +303,24 @@ async function loadStageContent(versionTag, stage) {
 }
 
 /**
- * Render plan stage
+ * NOTE: All stage render functions (renderPlanStage, renderImplementStage, renderTestStage, renderReviewStage)
+ * have been moved to versions-stage-renderers.js to avoid duplication.
+ * 
+ * The enhanced versions with technical details, sync history, and branch merging are now in:
+ * frontend/views-v2/versions-stage-renderers.js
+ * 
+ * This file (versions.js) now focuses on:
+ * - Version list management (loadVersionsV2, renderVersionsList)
+ * - Version detail navigation (loadVersionDetail, loadVersionStages)
+ * - Stage content loading (loadStageContent - delegates to renderers)
+ * - Planning agent polling (startPlanningAgentPolling)
+ * - Version rejection (rejectVersion)
  */
-async function renderPlanStage(versionTag, container) {
-  // Load stage summary
-  let summary = null;
-  try {
-    const summaryData = await window.apiCall(`/api/versions/${versionTag}/plan/summary`);
-    summary = summaryData.summary;
-  } catch (error) {
-    // 404 is expected if stage doesn't exist yet, don't log as error
-    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
-      console.error("Failed to load plan summary:", error);
-    }
-  }
-  
-  // Check for planning agent status
-  let agentStatus = null;
-  try {
-    const agentData = await window.apiCall(`/api/versions/${versionTag}/planning-agent-status`);
-    if (agentData.hasAgent) {
-      agentStatus = agentData.agent;
-      // Start polling if agent is still running
-      if (agentStatus.status !== "completed" && agentStatus.status !== "failed") {
-        if (window.startPlanningAgentPolling) {
-          window.startPlanningAgentPolling(versionTag, agentStatus.id);
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Failed to load planning agent status:", error);
-  }
-  
-  container.innerHTML = `
-    <div class="stage-wizard-content">
-      <h3>Planning Stage</h3>
-      
-      ${agentStatus ? `
-        <div style="background: ${agentStatus.status === "completed" ? "var(--success-light, #e8f5e9)" : agentStatus.status === "failed" ? "var(--error-bg, #fee)" : "var(--primary-light, #e3f2fd)"}; border-left: 4px solid ${agentStatus.status === "completed" ? "var(--success, #4caf50)" : agentStatus.status === "failed" ? "var(--error, #f44336)" : "var(--primary)"}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: ${agentStatus.status === "completed" ? "var(--success)" : agentStatus.status === "failed" ? "var(--error)" : "var(--primary)"};">
-              ${agentStatus.status === "completed" ? "✓ Planning Agent Completed" : agentStatus.status === "failed" ? "✗ Planning Agent Failed" : "🤖 Planning Agent Running"}
-            </h4>
-            <span class="status-badge ${agentStatus.status}">${agentStatus.status}</span>
-          </div>
-          ${agentStatus.status === "running" || agentStatus.status === "processing" ? `
-            <p style="margin: 0.5rem 0; color: var(--text);">
-              The AI agent is analyzing your project and generating goals. This may take a few minutes.
-            </p>
-            <div style="margin-top: 0.75rem;">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: 50%; animation: pulse 2s infinite;"></div>
-              </div>
-            </div>
-          ` : agentStatus.status === "completed" ? `
-            <p style="margin: 0.5rem 0; color: var(--text);">
-              The planning agent has completed and generated your version goals. Review and edit as needed below.
-            </p>
-          ` : agentStatus.status === "failed" ? `
-            <p style="margin: 0.5rem 0; color: var(--text);">
-              The planning agent encountered an error: ${agentStatus.error || "Unknown error"}. You can manually create goals below.
-            </p>
-          ` : ""}
-          ${agentStatus.cloudAgentId ? `
-            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
-              Agent ID: <a href="https://cursor.com/agents/${agentStatus.cloudAgentId}" target="_blank" style="color: var(--primary);">${agentStatus.cloudAgentId.substring(0, 8)}...</a>
-            </p>
-          ` : ""}
-        </div>
-      ` : ""}
-      
-      ${summary ? `
-        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: var(--primary);">Current Plan Status</h4>
-            <span class="status-badge ${summary.status}">${summary.status}</span>
-          </div>
-          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
-          ${summary.progress > 0 ? `
-            <div style="margin-top: 0.75rem;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
-                <span>Progress</span>
-                <span>${summary.progress}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${summary.progress}%"></div>
-              </div>
-            </div>
-          ` : ""}
-          ${summary.details?.goals && summary.details.goals.length > 0 ? `
-            <div style="margin-top: 1rem;">
-              <strong style="font-size: 0.875rem;">Goals:</strong>
-              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem;">
-                ${summary.details.goals.slice(0, 5).map(g => `
-                  <li style="margin-bottom: 0.25rem;">
-                    ${g.completed ? "✓" : "○"} ${g.text}
-                  </li>
-                `).join("")}
-                ${summary.details.goals.length > 5 ? `<li style="color: var(--text-light);">... and ${summary.details.goals.length - 5} more</li>` : ""}
-              </ul>
-            </div>
-          ` : ""}
-        </div>
-      ` : ""}
-      
-      <p style="color: var(--text-light); margin-bottom: 1.5rem;">Define goals and scope for this version</p>
-      
-      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">
-        <h4 style="margin: 0 0 0.5rem 0;">Goals</h4>
-        <div id="plan-goals-list"></div>
-        <button class="btn btn-sm btn-secondary" onclick="addPlanGoal()" style="margin-top: 0.5rem;">+ Add Goal</button>
-      </div>
-      
-      <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-primary" onclick="savePlanStage('${versionTag}')">Save</button>
-        <button class="btn btn-secondary" onclick="markStageComplete('${versionTag}', 'plan')">Mark Complete</button>
-        ${agentStatus && (agentStatus.status === "running" || agentStatus.status === "processing") ? `
-          <button class="btn btn-sm" onclick="refreshPlanStage('${versionTag}')">Refresh Status</button>
-        ` : ""}
-      </div>
-    </div>
-  `;
-  
-  // Load existing goals
-  if (summary?.details?.goals) {
-    const goalsList = document.getElementById("plan-goals-list");
-    if (goalsList) {
-      goalsList.innerHTML = summary.details.goals.map((goal, index) => `
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-          <input type="text" value="${goal.text}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
-                 onchange="updatePlanGoal(${index}, this.value)">
-          <button class="btn btn-sm" onclick="removePlanGoal(${index})">Remove</button>
-        </div>
-      `).join("");
-    }
-  }
-}
 
 /**
- * Render implement stage
+ * Planning agent polling
  */
-async function renderImplementStage(versionTag, container) {
+const planningAgentIntervals = new Map();
   // Load stage summary
   let summary = null;
   try {
@@ -716,6 +610,8 @@ async function rejectVersion(versionTag) {
  * Planning agent polling
  */
 const planningAgentIntervals = new Map();
+// Track which agents we've already notified about to prevent duplicate notifications
+const notifiedAgents = new Set();
 
 function startPlanningAgentPolling(versionTag, _agentTaskId) {
   // Stop existing polling for this version if any
@@ -726,6 +622,7 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
   // Dynamic polling interval - starts at 15s, increases if rate limited
   let pollInterval = 15000; // 15 seconds default (increased to reduce API calls)
   let consecutiveErrors = 0;
+  let lastKnownStatus = null; // Track last known status to detect changes
   
   const poll = async () => {
     // Check if polling was stopped
@@ -738,6 +635,7 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
       
       if (agentData.hasAgent) {
         const agent = agentData.agent;
+        const currentStatus = agent.status?.toLowerCase();
         
         // Reset error counter on success
         consecutiveErrors = 0;
@@ -771,14 +669,30 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
         }
         
         // Stop polling if agent completed or failed
-        if (agent.status === "completed" || agent.status === "failed") {
+        // Only show notification if status changed from running to completed/failed
+        if (currentStatus === "completed" || currentStatus === "failed") {
           stopPlanningAgentPolling(versionTag);
           
-          // Show notification
-          if (agent.status === "completed") {
-            window.showNotification(`Planning agent completed for version ${versionTag}. Goals have been generated.`, "success");
-          } else {
-            window.showNotification(`Planning agent failed for version ${versionTag}: ${agent.error || "Unknown error"}`, "error");
+          // Only show notification if:
+          // 1. We were tracking a running agent (lastKnownStatus was set to running/creating/processing)
+          // 2. Status changed from running to completed/failed
+          // 3. We haven't already notified about this agent
+          const notificationKey = `${versionTag}-${agent.id || versionTag}`;
+          const wasTrackingRunningAgent = lastKnownStatus !== null && 
+                                         (lastKnownStatus === "running" || lastKnownStatus === "creating" || lastKnownStatus === "processing");
+          const statusChanged = wasTrackingRunningAgent && lastKnownStatus !== currentStatus;
+          
+          // Don't notify if agent was already completed when we started polling (lastKnownStatus is null)
+          if (statusChanged && !notifiedAgents.has(notificationKey)) {
+            // Show notification
+            if (currentStatus === "completed") {
+              window.showNotification(`Planning agent completed for version ${versionTag}. Goals have been generated.`, "success");
+            } else {
+              window.showNotification(`Planning agent failed for version ${versionTag}: ${agent.error || "Unknown error"}`, "error");
+            }
+            
+            // Mark as notified
+            notifiedAgents.add(notificationKey);
           }
           
           // Refresh versions list
@@ -786,6 +700,12 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
             await window.loadVersionsV2();
           }
           return;
+        }
+        
+        // Update last known status (only if agent is still running)
+        // This ensures we only track status changes for agents that were running when we started polling
+        if (currentStatus === "running" || currentStatus === "creating" || currentStatus === "processing") {
+          lastKnownStatus = currentStatus;
         }
       } else {
         // Agent not found, stop polling

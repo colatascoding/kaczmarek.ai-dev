@@ -51,11 +51,85 @@ async function mergePlanningAgentBranch(versionTag, branch) {
   }
 }
 
+/**
+ * Copy technical details to clipboard
+ */
+function copyTechnicalDetails(versionTag) {
+  try {
+    const detailsElement = document.getElementById(`technical-details-${versionTag}`);
+    if (!detailsElement) {
+      const win = getWindow();
+      if (win && win.showNotification) {
+        win.showNotification("Technical details not found. Please expand the details section first.", "error");
+      }
+      return;
+    }
+    
+    const text = detailsElement.textContent;
+    
+    // Use modern clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        const win = getWindow();
+        if (win && win.showNotification) {
+          win.showNotification("Technical details copied to clipboard!", "success");
+        }
+      }).catch(err => {
+        console.error("Failed to copy to clipboard:", err);
+        fallbackCopyTextToClipboard(text);
+      });
+    } else {
+      fallbackCopyTextToClipboard(text);
+    }
+  } catch (error) {
+    console.error("Failed to copy technical details:", error);
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification("Failed to copy technical details", "error");
+    }
+  }
+}
+
+/**
+ * Fallback copy method for older browsers
+ */
+function fallbackCopyTextToClipboard(text) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-999999px";
+  textArea.style.top = "-999999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand("copy");
+    const win = getWindow();
+    if (win && win.showNotification) {
+      if (successful) {
+        win.showNotification("Technical details copied to clipboard!", "success");
+      } else {
+        win.showNotification("Failed to copy. Please select and copy manually.", "error");
+      }
+    }
+  } catch (err) {
+    console.error("Fallback copy failed:", err);
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification("Failed to copy. Please select and copy manually.", "error");
+    }
+  }
+  
+  document.body.removeChild(textArea);
+}
+
 // Expose globally - use the appropriate window reference
 (function() {
   const win = getWindow();
   if (win) {
     win.mergePlanningAgentBranch = mergePlanningAgentBranch;
+    win.copyTechnicalDetails = copyTechnicalDetails;
   }
 })();
 
@@ -300,6 +374,42 @@ async function renderPlanStage(versionTag, container) {
                 </details>
               </div>
             ` : ""}
+            
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <details style="cursor: pointer;">
+                <summary style="font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                  <span>🔧 Technical Details</span>
+                  <button onclick="copyTechnicalDetails('${versionTag}'); event.stopPropagation();" 
+                          style="padding: 0.25rem 0.75rem; background: var(--primary); color: white; border: none; border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer;"
+                          onmouseover="this.style.background='var(--primary-dark)'"
+                          onmouseout="this.style.background='var(--primary)'">
+                    📋 Copy Summary
+                  </button>
+                </summary>
+                <div style="margin-top: 0.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius); font-size: 0.75rem; font-family: monospace; max-height: 500px; overflow-y: auto;">
+                  <pre id="technical-details-${versionTag}" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify({
+                    versionTag: versionTag,
+                    agentStatus: {
+                      id: agentStatus.id,
+                      status: agentStatus.status,
+                      type: agentStatus.type,
+                      cloudAgentId: agentStatus.cloudAgentId,
+                      executionId: agentStatus.executionId,
+                      startedAt: agentStatus.startedAt,
+                      completedAt: agentStatus.completedAt,
+                      error: agentStatus.error,
+                      lastSynced: agentStatus.lastSynced,
+                      autoMerge: agentStatus.autoMerge,
+                      mergeStrategy: agentStatus.mergeStrategy,
+                      agentBranch: agentStatus.agentBranch,
+                      hasAgentBranch: !!agentStatus.agentBranch,
+                      cloudStatus: agentStatus.cloudStatus || null
+                    },
+                    timestamp: new Date().toISOString()
+                  }, null, 2)}</pre>
+                </div>
+              </details>
+            </div>
           </div>
         ` : ""}
         
