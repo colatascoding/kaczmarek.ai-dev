@@ -89,7 +89,7 @@ async function loadNotificationsV2() {
                         </span>
                       </td>
                       <td style="padding: 1rem; color: var(--text);">
-                        ${escapeHtml(notif.message)}
+                        ${window.escapeHtml ? window.escapeHtml(notif.message) : notif.message}
                       </td>
                     </tr>
                   `;
@@ -109,14 +109,7 @@ async function loadNotificationsV2() {
   `;
 }
 
-// Use centralized escapeHtml from utils.js
-// If not available, fallback to local implementation
-const escapeHtml = window.escapeHtml || function(text) {
-  if (text == null) return "";
-  const div = document.createElement("div");
-  div.textContent = String(text);
-  return div.innerHTML;
-};
+// Use escapeHtml from utils.js - no need to redeclare
 
 // Expose globally
 window.loadNotificationsV2 = loadNotificationsV2;

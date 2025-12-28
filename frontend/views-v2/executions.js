@@ -178,7 +178,8 @@ function renderExecutionsV2(executions, agents) {
                         title="${agentNameEscaped} - ${agentStatusEscaped}">
                     🤖 ${agentNameEscaped.length > 12 ? agentNameEscaped.substring(0, 12) + "..." : agentNameEscaped} (${agentStatusEscaped})
                   </span>
-                `).join("")}
+                `;
+                }).join("")}
               </div>
             </div>
           ` : ""}

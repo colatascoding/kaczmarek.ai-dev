@@ -510,6 +510,19 @@ async function refreshPlanStage(versionTag) {
   }
 }
 
+/**
+ * Refresh version detail view
+ */
+async function refreshVersionDetail(versionTag) {
+  if (window.loadVersionDetail) {
+    await window.loadVersionDetail(versionTag);
+  } else {
+    // Fallback: reload the version detail
+    const cleanTag = cleanVersionTagLocal(versionTag);
+    await loadVersionDetail(cleanTag);
+  }
+}
+
 // Expose globally
 window.loadVersionsV2 = loadVersionsV2;
 // showVersionDetail is already defined above, just expose it

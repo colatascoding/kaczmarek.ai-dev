@@ -74,9 +74,9 @@ function renderDecisionCard(decision, executionId) {
               ` : ""}
               <button 
                 class="btn btn-primary btn-sm" 
-                data-decision-id="${escapeHtml(decision.decisionId)}"
-                data-proposal-id="${escapeHtml(proposal.id || String(index))}"
-                data-execution-id="${escapeHtml(executionId)}"
+                data-decision-id="${window.escapeHtml ? window.escapeHtml(decision.decisionId) : decision.decisionId}"
+                data-proposal-id="${window.escapeHtml ? window.escapeHtml(proposal.id || String(index)) : (proposal.id || String(index))}"
+                data-execution-id="${window.escapeHtml ? window.escapeHtml(executionId) : executionId}"
                 onclick="submitDecisionFromButton(this)"
                 style="margin-top: 0.5rem;">
                 Select
@@ -97,12 +97,7 @@ function renderDecisionCard(decision, executionId) {
 
 // Use centralized escapeHtml from utils.js
 // If not available, fallback to local implementation
-const escapeHtml = window.escapeHtml || function(text) {
-  if (text == null) return "";
-  const div = document.createElement("div");
-  div.textContent = String(text);
-  return div.innerHTML;
-};
+// Use escapeHtml from utils.js - no need to redeclare
 
 /**
  * Submit decision from button click (safer than inline onclick)
@@ -128,10 +123,11 @@ async function submitDecision(decisionId, choice, executionId, notes = "") {
       window.showNotification("Decision submitted successfully", "success");
       
       // Remove decision card
-      const card = document.querySelector(`[data-decision-id="${escapeHtml(decisionId)}"]`);
+      const escapedDecisionId = window.escapeHtml ? window.escapeHtml(decisionId) : decisionId;
+      const card = document.querySelector(`[data-decision-id="${escapedDecisionId}"]`);
       if (card) {
         card.style.opacity = "0.5";
-        const escapedChoice = escapeHtml(choice);
+        const escapedChoice = window.escapeHtml ? window.escapeHtml(choice) : choice;
         card.innerHTML = `
           <div style="text-align: center; padding: 1rem;">
             <p style="color: var(--success);">✓ Decision submitted: ${escapedChoice}</p>

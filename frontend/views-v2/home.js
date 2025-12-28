@@ -153,12 +153,30 @@ function refreshHome() {
  */
 function showExecutionDetails(executionId) {
   // Try to use the existing execution details function
-  if (window.showExecutionDetails) {
+  if (window.showExecutionDetailsV2) {
+    window.showExecutionDetailsV2(executionId);
+  } else if (window.showExecutionDetails) {
     window.showExecutionDetails(executionId);
   } else {
     // Fallback: show notification with execution ID
-    window.showNotification(`Execution: ${executionId}`, "info");
+    const safeId = window.escapeHtml ? window.escapeHtml(executionId) : executionId;
+    window.showNotification(`Execution: ${safeId}`, "info");
   }
+}
+
+/**
+ * Attach event listeners for home view actions
+ */
+function attachHomeEventListeners() {
+  // Execution detail clicks
+  document.querySelectorAll("[data-action='show-execution-details']").forEach(element => {
+    element.addEventListener("click", () => {
+      const executionId = element.dataset.executionId;
+      if (executionId) {
+        showExecutionDetails(executionId);
+      }
+    });
+  });
 }
 
 /**
