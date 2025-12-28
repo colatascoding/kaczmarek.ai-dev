@@ -2,14 +2,30 @@
  * Stage renderers for versions view
  */
 
+// Helper to get window reference (works in both browser and test environments)
+function getWindow() {
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined" && global.window) {
+    return global.window;
+  }
+  return null;
+}
+
 /**
  * Manually trigger merge for planning agent branch
  */
 async function mergePlanningAgentBranch(versionTag, branch) {
   try {
-    window.showNotification("Merging agent branch...", "info");
+    const win = getWindow();
+    if (!win || !win.showNotification) {
+      console.error("window.showNotification is not available");
+      return;
+    }
+    win.showNotification("Merging agent branch...", "info");
     
-    const result = await window.apiCall(`/api/versions/${versionTag}/planning-agent-merge`, {
+    const result = await win.apiCall(`/api/versions/${versionTag}/planning-agent-merge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -17,33 +33,45 @@ async function mergePlanningAgentBranch(versionTag, branch) {
     });
     
     if (result.success) {
-      window.showNotification(`Successfully merged branch: ${branch}`, "success");
+      win.showNotification(`Successfully merged branch: ${branch}`, "success");
       // Refresh the plan stage to show updated status
       const stageContent = document.getElementById("stage-content");
       if (stageContent) {
         await renderPlanStage(versionTag, stageContent);
       }
     } else {
-      window.showNotification(`Failed to merge: ${result.error || "Unknown error"}`, "error");
+      win.showNotification(`Failed to merge: ${result.error || "Unknown error"}`, "error");
     }
   } catch (error) {
     console.error("Failed to merge branch:", error);
-    window.showNotification(`Failed to merge branch: ${error.message}`, "error");
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification(`Failed to merge branch: ${error.message}`, "error");
+    }
   }
 }
 
-// Expose globally
-window.mergePlanningAgentBranch = mergePlanningAgentBranch;
+// Expose globally - use the appropriate window reference
+(function() {
+  const win = getWindow();
+  if (win) {
+    win.mergePlanningAgentBranch = mergePlanningAgentBranch;
+  }
+})();
 
 /**
  * Render plan stage
  */
 async function renderPlanStage(versionTag, container) {
   try {
+    const win = getWindow();
+    if (!win || !win.apiCall) {
+      throw new Error("window.apiCall is not available");
+    }
     // Batch API calls for better performance
     const [summaryResult, agentResult] = await Promise.allSettled([
-      window.apiCall(`/api/versions/${versionTag}/plan/summary`),
-      window.apiCall(`/api/versions/${versionTag}/planning-agent-status`).catch(() => ({ hasAgent: false }))
+      win.apiCall(`/api/versions/${versionTag}/plan/summary`),
+      win.apiCall(`/api/versions/${versionTag}/planning-agent-status`).catch(() => ({ hasAgent: false }))
     ]);
     
     const summary = summaryResult.status === "fulfilled" ? (summaryResult.value.summary || {}) : {};
@@ -69,8 +97,9 @@ async function renderPlanStage(versionTag, container) {
         fullAgentStatus: agentStatus // Log full object for debugging
       });
       // Start polling if agent is still running
-      if (agentStatus && (agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing") && window.startPlanningAgentPolling) {
-        window.startPlanningAgentPolling(versionTag, agentStatus.id);
+      const win = getWindow();
+      if (agentStatus && (agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing") && win && win.startPlanningAgentPolling) {
+        win.startPlanningAgentPolling(versionTag, agentStatus.id);
       }
     }
     
@@ -536,9 +565,81 @@ async function renderReviewStage(versionTag, container) {
   }
 }
 
-// Expose globally
-window.renderPlanStage = renderPlanStage;
-window.renderImplementStage = renderImplementStage;
-window.renderTestStage = renderTestStage;
-window.renderReviewStage = renderReviewStage;
+// Expose globally - use the appropriate window reference
+// Use try-catch to ensure errors don't prevent module from loading
+try {
+  (function() {
+    const win = getWindow();
+    // Always log in test-like environments (Jest sets up jsdom)
+    // Check for Jest environment more broadly
+    const isTestEnv = typeof process !== "undefined" && (
+      process.env.NODE_ENV === "test" || 
+      process.env.JEST_WORKER_ID !== undefined ||
+      typeof jest !== "undefined" ||
+      (typeof global !== "undefined" && global.jest)
+    );
+    
+    // Always log the first time to debug
+    console.log("[versions-stage-renderers] IIFE executing - getWindow() returned:", {
+      hasWindow: typeof window !== "undefined",
+      hasGlobalWindow: typeof global !== "undefined" && !!global.window,
+      winType: typeof win,
+      winIsNull: win === null,
+      winIsUndefined: win === undefined,
+      renderPlanStageType: typeof renderPlanStage,
+      isTestEnv: isTestEnv
+    });
+    
+    if (win) {
+      try {
+        if (typeof renderPlanStage === "function") {
+          win.renderPlanStage = renderPlanStage;
+          console.log("[versions-stage-renderers] ✓ Assigned renderPlanStage to window");
+        } else {
+          console.error("[versions-stage-renderers] renderPlanStage is not a function:", typeof renderPlanStage);
+        }
+        if (typeof renderImplementStage === "function") {
+          win.renderImplementStage = renderImplementStage;
+        }
+        if (typeof renderTestStage === "function") {
+          win.renderTestStage = renderTestStage;
+        }
+        if (typeof renderReviewStage === "function") {
+          win.renderReviewStage = renderReviewStage;
+        }
+        // Always log final assignment
+        console.log("[versions-stage-renderers] Final assignment check:", {
+          renderPlanStage: typeof win.renderPlanStage,
+          renderImplementStage: typeof win.renderImplementStage,
+          renderTestStage: typeof win.renderTestStage,
+          renderReviewStage: typeof win.renderReviewStage,
+          windowType: typeof win,
+          isGlobalWindow: typeof global !== "undefined" && win === global.window,
+          windowKeys: Object.keys(win).filter(k => k.includes("render")).slice(0, 10)
+        });
+      } catch (e) {
+        console.error("[versions-stage-renderers] Error exposing functions to window:", e.message, e.stack);
+      }
+    } else {
+      console.error("[versions-stage-renderers] window is not defined - cannot expose render functions", {
+        hasWindow: typeof window !== "undefined",
+        hasGlobal: typeof global !== "undefined",
+        hasGlobalWindow: typeof global !== "undefined" && !!global.window
+      });
+    }
+  })();
+} catch (e) {
+  console.error("[versions-stage-renderers] FATAL: Error in expose IIFE:", e.message, e.stack);
+}
+
+// Also export for CommonJS (for testing)
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    renderPlanStage,
+    renderImplementStage,
+    renderTestStage,
+    renderReviewStage,
+    mergePlanningAgentBranch
+  };
+}
 
