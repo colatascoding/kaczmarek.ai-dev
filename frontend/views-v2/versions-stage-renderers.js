@@ -14,6 +14,55 @@ function getWindow() {
 }
 
 /**
+ * Launch agent for a workstream
+ */
+async function launchWorkstreamAgent(versionTag, workstreamId) {
+  try {
+    const win = getWindow();
+    if (!win || !win.showNotification) {
+      console.error("window.showNotification is not available");
+      return;
+    }
+    
+    win.showNotification(`Launching agent for workstream: ${workstreamId}...`, "info");
+    
+    const result = await win.apiCall(`/api/workstreams/${versionTag}/${workstreamId}/launch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        agentType: "cursor",
+        autoMerge: false,
+        mergeStrategy: "merge"
+      })
+    });
+    
+    if (result.success) {
+      win.showNotification(`Agent launched successfully! Monitor at: https://cursor.com/agents/${result.cloudAgentId}`, "success");
+      // Refresh the view to show the agent status
+      if (win.renderVersionStage) {
+        setTimeout(() => {
+          const currentHash = win.location?.hash || "";
+          const match = currentHash.match(/versions\/([^/]+)\/([^/]+)/);
+          if (match) {
+            win.renderVersionStage(match[1], match[2]);
+          }
+        }, 1000);
+      }
+    } else {
+      win.showNotification(`Failed to launch agent: ${result.error || "Unknown error"}`, "error");
+    }
+  } catch (error) {
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification(`Error launching agent: ${error.message}`, "error");
+    }
+    console.error("Failed to launch workstream agent:", error);
+  }
+}
+
+/**
  * Manually trigger merge for planning agent branch
  */
 async function mergePlanningAgentBranch(versionTag, branch) {
@@ -527,14 +576,29 @@ async function renderImplementStage(versionTag, container) {
                 ${workstreams.map(ws => `
                   <li style="padding: 0.75rem; margin-bottom: 0.5rem; background: var(--bg-secondary); border-radius: var(--radius);">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
-                      <strong>${ws.name}</strong>
+                      <strong>${window.escapeHtml(ws.name)}</strong>
                       <span style="padding: 0.25rem 0.5rem; background: ${ws.status === "active" ? "var(--primary)" : "var(--text-light)"}; color: white; border-radius: var(--radius); font-size: 0.75rem;">
                         ${ws.status}
                       </span>
                     </div>
-                    <div style="height: 4px; background: var(--border); border-radius: 2px; margin-top: 0.5rem;">
+                    ${ws.description ? `<div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.5rem;">${window.escapeHtml(ws.description)}</div>` : ""}
+                    <div style="height: 4px; background: var(--border); border-radius: 2px; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                       <div style="height: 100%; width: ${ws.progress || 0}%; background: var(--primary);"></div>
                     </div>
+                    ${ws.metadata?.agentId ? `
+                      <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.5rem;">
+                        Agent: <a href="https://cursor.com/agents/${ws.metadata.agentId}" target="_blank" style="color: var(--primary);">${ws.metadata.agentId}</a>
+                        ${ws.metadata.agentStatus ? ` (${ws.metadata.agentStatus})` : ""}
+                      </div>
+                    ` : ""}
+                    <button 
+                      class="btn btn-sm" 
+                      onclick="launchWorkstreamAgent('${versionTag.replace(/'/g, "\\'")}', '${ws.id.replace(/'/g, "\\'")}')" 
+                      style="width: 100%; margin-top: 0.5rem; ${ws.metadata?.agentId ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                      ${ws.metadata?.agentId ? 'disabled' : ''}
+                    >
+                      ${ws.metadata?.agentId ? "Agent Running" : "🚀 Launch Agent"}
+                    </button>
                   </li>
                 `).join("")}
               </ul>
@@ -543,7 +607,7 @@ async function renderImplementStage(versionTag, container) {
                 No workstreams created yet.
               </p>
             `}
-            <button class="btn btn-primary" onclick="openWorkstreamCreationWizard()" style="margin-top: 1rem; width: 100%;">
+            <button class="btn btn-primary" onclick="openWorkstreamWizard()" style="margin-top: 1rem; width: 100%;">
               Create Workstream
             </button>
           </div>
@@ -764,6 +828,12 @@ try {
           if (isTestEnv) {
             console.log("[versions-stage-renderers] ✓ Assigned renderPlanStage to window");
           }
+        }
+        if (typeof launchWorkstreamAgent === "function") {
+          win.launchWorkstreamAgent = launchWorkstreamAgent;
+          if (isTestEnv) {
+            console.log("[versions-stage-renderers] ✓ Assigned launchWorkstreamAgent to window");
+          }
         } else {
           console.error("[versions-stage-renderers] renderPlanStage is not a function:", typeof renderPlanStage);
         }
@@ -798,7 +868,8 @@ if (typeof module !== "undefined" && module.exports) {
     renderImplementStage,
     renderTestStage,
     renderReviewStage,
-    mergePlanningAgentBranch
+    mergePlanningAgentBranch,
+    launchWorkstreamAgent
   };
 }
 
