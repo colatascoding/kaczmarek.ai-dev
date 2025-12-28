@@ -79,8 +79,8 @@ async function switchView(viewName) {
  * Show version detail
  */
 function showVersionDetail(versionTag) {
-  // Remove "version" prefix if present
-  const cleanTag = versionTag.replace(/^version/, "");
+  // Remove "version" prefix if present (using centralized helper)
+  const cleanTag = window.cleanVersionTag ? window.cleanVersionTag(versionTag) : versionTag.replace(/^version/, "");
   currentVersion = cleanTag;
   switchView("version-detail");
   if (window.loadVersionDetail) {

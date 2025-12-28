@@ -198,8 +198,48 @@ if (typeof module !== "undefined" && module.exports) {
     showNotification, 
     apiCall,
     getNotificationLog,
-    clearNotificationLog
+    clearNotificationLog,
+    escapeHtml,
+    cleanVersionTag,
+    getStatusClass,
+    getOrCreateModal,
+    closeModalV2,
+    groupBy
   };
+}
+
+/**
+ * Escape HTML to prevent XSS attacks
+ * @param {string|number|null|undefined} text - Text to escape
+ * @returns {string} Escaped HTML string
+ */
+function escapeHtml(text) {
+  if (text == null) return "";
+  const div = document.createElement("div");
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+/**
+ * Clean version tag by removing "version" prefix
+ * @param {string} versionTag - Version tag to clean
+ * @returns {string} Cleaned version tag
+ */
+function cleanVersionTag(versionTag) {
+  if (!versionTag) return "";
+  return String(versionTag).replace(/^version/, "");
+}
+
+/**
+ * Generate CSS class name from status string
+ * Converts status to lowercase and replaces spaces with hyphens
+ * @param {string} status - Status string
+ * @param {string} defaultStatus - Default status if status is empty
+ * @returns {string} CSS class name
+ */
+function getStatusClass(status, defaultStatus = "unknown") {
+  const statusStr = (status || defaultStatus).toLowerCase().replace(/\s+/g, "-");
+  return `status-badge ${statusStr}`;
 }
 
 // Make available globally for browser use
@@ -208,4 +248,67 @@ window.showNotification = showNotification;
 window.apiCall = apiCall;
 window.getNotificationLog = getNotificationLog;
 window.clearNotificationLog = clearNotificationLog;
+/**
+ * Create or get modal element
+ * @returns {HTMLElement} Modal element
+ */
+function getOrCreateModal() {
+  let modal = document.getElementById("modal-v2");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-v2";
+    modal.className = "modal-v2";
+    modal.innerHTML = `
+      <div class="modal-content-v2" style="max-width: 800px;">
+        <div class="modal-header-v2">
+          <h3 id="modal-title-v2"></h3>
+          <button class="modal-close" onclick="closeModalV2()">&times;</button>
+        </div>
+        <div class="modal-body-v2" id="modal-body-v2"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  return modal;
+}
+
+/**
+ * Close modal
+ */
+function closeModalV2() {
+  const modal = document.getElementById("modal-v2");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+/**
+ * Group array items by a key
+ * @param {Array} items - Array of items to group
+ * @param {string|Function} keyFn - Key to group by (string property name or function)
+ * @returns {Object} Object with keys as group names and values as arrays
+ */
+function groupBy(items, keyFn) {
+  const groups = {};
+  const getKey = typeof keyFn === "function" ? keyFn : (item) => item[keyFn];
+  
+  items.forEach(item => {
+    const key = getKey(item);
+    if (key != null) {
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(item);
+    }
+  });
+  
+  return groups;
+}
+
+window.escapeHtml = escapeHtml;
+window.cleanVersionTag = cleanVersionTag;
+window.getStatusClass = getStatusClass;
+window.getOrCreateModal = getOrCreateModal;
+window.closeModalV2 = closeModalV2;
+window.groupBy = groupBy;
 

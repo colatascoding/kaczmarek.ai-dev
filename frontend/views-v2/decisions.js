@@ -95,15 +95,14 @@ function renderDecisionCard(decision, executionId) {
   `;
 }
 
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text) {
+// Use centralized escapeHtml from utils.js
+// If not available, fallback to local implementation
+const escapeHtml = window.escapeHtml || function(text) {
   if (text == null) return "";
   const div = document.createElement("div");
   div.textContent = String(text);
   return div.innerHTML;
-}
+};
 
 /**
  * Submit decision from button click (safer than inline onclick)

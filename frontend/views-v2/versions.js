@@ -51,7 +51,8 @@ function renderVersionsList(versions) {
   });
   
   container.innerHTML = versions.map(version => {
-    const statusClass = (version.status || "pending").toLowerCase().replace(/\s+/g, "-");
+    const statusClass = window.getStatusClass ? window.getStatusClass(version.status, "pending") : 
+                       (version.status || "pending").toLowerCase().replace(/\s+/g, "-");
     const hasActivePlanningAgent = version.planningAgent && 
       version.planningAgent.status !== "completed" && 
       version.planningAgent.status !== "failed";
@@ -70,7 +71,7 @@ function renderVersionsList(versions) {
               ` : ""}
             </div>
           </div>
-          <button class="btn btn-primary" onclick="showVersionDetail('${version.tag}')">View Details</button>
+          <button class="btn btn-primary" data-version-tag="${window.escapeHtml ? window.escapeHtml(version.tag) : version.tag}" data-action="show-version-detail">View Details</button>
         </div>
         
         ${version.description ? `<p style="color: var(--text-light); margin: 1rem 0;">${version.description}</p>` : ""}
@@ -87,9 +88,9 @@ function renderVersionsList(versions) {
               <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                   <span style="font-weight: 500;">${stage.name}</span>
-                  <span class="status-badge ${(stage.status || "pending").toLowerCase().replace(/\s+/g, "-")}">${stage.status || "pending"}</span>
+                  <span class="${window.getStatusClass ? window.getStatusClass(stage.status, "pending") : `status-badge ${(stage.status || "pending").toLowerCase().replace(/\s+/g, "-")}`}">${stage.status || "pending"}</span>
                 </div>
-                <button class="btn btn-sm btn-secondary" onclick="showStageWizard('${version.tag}', '${stage.name}')" style="width: 100%;">
+                <button class="btn btn-sm btn-secondary" data-version-tag="${window.escapeHtml ? window.escapeHtml(version.tag) : version.tag}" data-stage-name="${window.escapeHtml ? window.escapeHtml(stage.name) : stage.name}" data-action="show-stage-wizard" style="width: 100%;">
                   View ${stage.name}
                 </button>
               </div>
@@ -102,7 +103,7 @@ function renderVersionsList(versions) {
           const canReject = status === "in-progress" || (status !== "completed" && status !== "rejected" && status !== "");
           return canReject ? `
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-              <button class="btn btn-danger" onclick="rejectVersion('${version.tag}')" style="width: 100%;">
+              <button class="btn btn-danger" data-version-tag="${window.escapeHtml ? window.escapeHtml(version.tag) : version.tag}" data-action="reject-version" style="width: 100%;">
                 Reject Version
               </button>
             </div>
@@ -154,19 +155,24 @@ function renderVersionStageProgress(version) {
  */
 async function loadVersionDetail(versionTag) {
   try {
-    const cleanTag = versionTag.replace(/^version/, "");
-    const [versionData, stagesData] = await Promise.all([
-      window.apiCall(`/api/versions`).then(data => {
-        const version = (data.versions || []).find(v => v.tag === cleanTag);
-        return version || null;
-      }),
-      window.loadVersionStages(cleanTag)
-    ]);
+    const cleanTag = cleanVersionTagLocal(versionTag);
+    // Use cached versions data if available
+    let versionsData;
+    if (window._cachedVersions && Date.now() - window._cachedVersions.timestamp < 5000) {
+      versionsData = window._cachedVersions.data;
+    } else {
+      versionsData = await window.apiCall(`/api/versions`);
+      window._cachedVersions = { data: versionsData, timestamp: Date.now() };
+    }
+    const version = (versionsData.versions || []).find(v => v.tag === cleanTag);
     
-    if (!versionData) {
+    if (!version) {
       window.showNotification("Version not found", "error");
       return;
     }
+    
+    const versionData = version;
+    const stagesData = version.stages || [];
     
     const displayTag = versionData?.tag || cleanTag;
     document.getElementById("version-detail-title").textContent = `Version ${displayTag}`;
@@ -200,7 +206,7 @@ async function loadVersionDetail(versionTag) {
         const statusEl = document.getElementById(`stage-status-${stageName}`);
         if (statusEl) {
           statusEl.textContent = stage.status || "pending";
-          statusEl.className = `stage-nav-status status-badge ${(stage.status || "pending").toLowerCase().replace(/\s+/g, "-")}`;
+          statusEl.className = `stage-nav-status ${window.getStatusClass ? window.getStatusClass(stage.status, "pending") : `status-badge ${(stage.status || "pending").toLowerCase().replace(/\s+/g, "-")}`}`;
         }
       });
     }
@@ -230,14 +236,41 @@ async function loadVersionDetail(versionTag) {
 async function loadVersionStages(versionTag) {
   try {
     // Remove "version" prefix if present
-    const cleanTag = versionTag.replace(/^version/, "");
-    const data = await window.apiCall(`/api/versions`);
+    const cleanTag = cleanVersionTagLocal(versionTag);
+    // Use cached versions data if available and recent (< 5 seconds)
+    let data;
+    if (window._cachedVersions && Date.now() - window._cachedVersions.timestamp < 5000) {
+      data = window._cachedVersions.data;
+    } else {
+      data = await window.apiCall(`/api/versions`);
+      window._cachedVersions = { data: data, timestamp: Date.now() };
+    }
     const version = (data.versions || []).find(v => v.tag === cleanTag || v.tag === versionTag);
     return version?.stages || [];
   } catch (error) {
     console.error("Failed to load version stages:", error);
     return [];
   }
+}
+
+/**
+ * Helper: Get current version tag from DOM or window state
+ * @returns {string|null} Current version tag or null
+ */
+function getCurrentVersionTag() {
+  return window.currentVersionTag || 
+         document.getElementById("version-detail-title")?.textContent?.replace("Version ", "") || 
+         null;
+}
+
+/**
+ * Helper: Clean version tag (remove "version" prefix)
+ * Uses centralized helper from utils.js if available
+ * @param {string} versionTag - Version tag to clean
+ * @returns {string} Cleaned version tag
+ */
+function cleanVersionTagLocal(versionTag) {
+  return window.cleanVersionTag ? window.cleanVersionTag(versionTag) : versionTag.replace(/^version/, "");
 }
 
 /**
@@ -249,7 +282,7 @@ async function loadStageContent(versionTag, stage) {
   
   try {
     // Remove "version" prefix if present
-    const cleanTag = versionTag.replace(/^version/, "");
+    const cleanTag = cleanVersionTagLocal(versionTag);
     
     // Map stage names
     const stageMap = {
@@ -321,306 +354,22 @@ async function loadStageContent(versionTag, stage) {
  * Planning agent polling
  */
 const planningAgentIntervals = new Map();
-  // Load stage summary
-  let summary = null;
-  try {
-    const summaryData = await window.apiCall(`/api/versions/${versionTag}/implement/summary`);
-    summary = summaryData.summary;
-  } catch (error) {
-    // 404 is expected if stage doesn't exist yet, don't log as error
-    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
-      console.error("Failed to load implement summary:", error);
-    }
-  }
-  
-  // Load workstreams (data used in renderImplementStage in versions-stage-renderers.js)
-  await window.apiCall(`/api/workstreams?versionTag=${versionTag}`).catch(() => ({ workstreams: [] }));
-  
-  container.innerHTML = `
-    <div class="stage-wizard-content">
-      <h3>Implementation Stage</h3>
-      
-      ${summary ? `
-        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: var(--primary);">Current Implementation Status</h4>
-            <span class="status-badge ${summary.status}">${summary.status}</span>
-          </div>
-          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
-          ${summary.progress > 0 ? `
-            <div style="margin-top: 0.75rem;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
-                <span>Progress</span>
-                <span>${summary.progress}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${summary.progress}%"></div>
-              </div>
-            </div>
-          ` : ""}
-          ${summary.details?.recentActivity && summary.details.recentActivity.length > 0 ? `
-            <div style="margin-top: 1rem;">
-              <strong style="font-size: 0.875rem;">Recent Activity:</strong>
-              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem; color: var(--text-light);">
-                ${summary.details.recentActivity.map(activity => `<li style="margin-bottom: 0.25rem;">${activity}</li>`).join("")}
-              </ul>
-            </div>
-          ` : ""}
-        </div>
-      ` : ""}
-      
-      <p style="color: var(--text-light); margin-bottom: 1.5rem;">Manage implementation tasks and workstreams</p>
-      
-      <div style="margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h4 style="margin: 0;">Active Workstreams</h4>
-          <button class="btn btn-primary btn-sm" onclick="openWorkstreamWizard()">+ New Workstream</button>
-        </div>
-        <div id="implement-workstreams-list" class="workstreams-grid-v2"></div>
-      </div>
-      
-      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius);">
-        <h4 style="margin: 0 0 0.5rem 0;">Quick Actions</h4>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn btn-sm" onclick="window.runWorkflow && window.runWorkflow('execute-features')">Extract Next Steps</button>
-          <button class="btn btn-sm" onclick="window.runWorkflow && window.runWorkflow('execute-features')">Run Implementation</button>
-          <button class="btn btn-sm" onclick="consolidateWorkstreams('${versionTag}')">Consolidate Workstreams</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Render workstreams
-  if (window.loadWorkstreams) {
-    await window.loadWorkstreams(versionTag);
-    // Move workstreams to implement stage container
-    const wsList = document.getElementById("implement-workstreams-list");
-    const homeList = document.getElementById("workstreams-list");
-    if (wsList && homeList) {
-      wsList.innerHTML = homeList.innerHTML;
-    }
-  }
-}
-
-/**
- * Render test stage
- */
-async function renderTestStage(versionTag, container) {
-  // Load stage summary
-  let summary = null;
-  try {
-    const summaryData = await window.apiCall(`/api/versions/${versionTag}/test/summary`);
-    summary = summaryData.summary;
-  } catch (error) {
-    // 404 is expected if stage doesn't exist yet, don't log as error
-    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
-      console.error("Failed to load test summary:", error);
-    }
-  }
-  
-  container.innerHTML = `
-    <div class="stage-wizard-content">
-      <h3>Testing Stage</h3>
-      
-      ${summary ? `
-        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: var(--primary);">Current Test Status</h4>
-            <span class="status-badge ${summary.status}">${summary.status}</span>
-          </div>
-          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
-          ${summary.progress > 0 ? `
-            <div style="margin-top: 0.75rem;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
-                <span>Test Progress</span>
-                <span>${summary.progress}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${summary.progress}%"></div>
-              </div>
-            </div>
-          ` : ""}
-          ${summary.details?.testCases && summary.details.testCases.length > 0 ? `
-            <div style="margin-top: 1rem;">
-              <strong style="font-size: 0.875rem;">Test Results:</strong>
-              <div style="margin-top: 0.5rem; font-size: 0.875rem;">
-                <span style="color: var(--success);">✓ ${summary.details.passedTests} passed</span>
-                ${summary.details.failedTests > 0 ? `<span style="color: var(--error); margin-left: 1rem;">✗ ${summary.details.failedTests} failed</span>` : ""}
-              </div>
-            </div>
-          ` : ""}
-        </div>
-      ` : ""}
-      
-      <p style="color: var(--text-light); margin-bottom: 1.5rem;">Run and review tests for this version</p>
-      
-      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">
-        <h4 style="margin: 0 0 0.5rem 0;">Test Execution</h4>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="runTests('all')">Run All Tests</button>
-          <button class="btn btn-secondary" onclick="runTests('unit')">Run Unit Tests</button>
-          <button class="btn btn-secondary" onclick="runTests('integration')">Run Integration Tests</button>
-        </div>
-      </div>
-      
-      <div id="test-results" style="background: var(--card-bg); padding: 1rem; border-radius: var(--radius);">
-        <p style="color: var(--text-light);">No test results yet. Run tests to see results.</p>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Render review stage
- */
-async function renderReviewStage(versionTag, container) {
-  // Load stage summary
-  let summary = null;
-  try {
-    const summaryData = await window.apiCall(`/api/versions/${versionTag}/review/summary`);
-    summary = summaryData.summary;
-  } catch (error) {
-    // 404 is expected if stage doesn't exist yet, don't log as error
-    if (error.message && !error.message.includes("404") && !error.message.includes("Not Found")) {
-      console.error("Failed to load review summary:", error);
-    }
-  }
-  
-  container.innerHTML = `
-    <div class="stage-wizard-content">
-      <h3>Review Stage</h3>
-      
-      ${summary ? `
-        <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: var(--primary);">Current Review Status</h4>
-            <span class="status-badge ${summary.status}">${summary.status}</span>
-          </div>
-          ${summary.details?.summary ? `
-            <p style="margin: 0.5rem 0; color: var(--text); font-style: italic;">${summary.details.summary}</p>
-          ` : ""}
-          <p style="margin: 0.5rem 0; color: var(--text);">${summary.summary}</p>
-          ${summary.progress > 0 ? `
-            <div style="margin-top: 0.75rem;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.875rem;">
-                <span>Completion Progress</span>
-                <span>${summary.progress}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${summary.progress}%"></div>
-              </div>
-            </div>
-          ` : ""}
-          ${summary.details?.nextSteps && summary.details.nextSteps.length > 0 ? `
-            <div style="margin-top: 1rem;">
-              <strong style="font-size: 0.875rem;">Next Steps:</strong>
-              <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; font-size: 0.875rem;">
-                ${summary.details.nextSteps.slice(0, 5).map(step => `
-                  <li style="margin-bottom: 0.25rem;">
-                    ${step.completed ? "✓" : "○"} ${step.text}
-                  </li>
-                `).join("")}
-                ${summary.details.nextSteps.length > 5 ? `<li style="color: var(--text-light);">... and ${summary.details.nextSteps.length - 5} more</li>` : ""}
-              </ul>
-            </div>
-          ` : ""}
-        </div>
-      ` : ""}
-      
-      <p style="color: var(--text-light); margin-bottom: 1.5rem;">Review and finalize this version</p>
-      
-      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem;">
-        <h4 style="margin: 0 0 0.5rem 0;">Review Checklist</h4>
-        <div id="review-checklist">
-          <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <input type="checkbox"> Goals completed
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <input type="checkbox"> All tests passing
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <input type="checkbox"> Documentation updated
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox"> Ready for next version
-          </label>
-        </div>
-      </div>
-      
-      <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <button class="btn btn-primary" onclick="window.runWorkflow && window.runWorkflow('review-self')">Run Review Workflow</button>
-        <button class="btn btn-secondary" onclick="markStageComplete('${versionTag}', 'review')">Mark Complete</button>
-        <button class="btn btn-primary" onclick="createNextVersion('${versionTag}')">Create Next Version</button>
-        <button class="btn btn-danger" onclick="rejectVersion('${versionTag}')" style="margin-left: auto;">Reject Version</button>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Refresh version detail
- */
-function refreshVersionDetail() {
-  const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
-  if (currentVersionTag) {
-    loadVersionDetail(currentVersionTag);
-  }
-}
-
-/**
- * Reject version
- */
-async function rejectVersion(versionTag) {
-  if (!confirm(`Are you sure you want to reject version ${versionTag}? This will mark it as rejected and allow creating a new version.`)) {
-    return;
-  }
-  
-  const reason = prompt("Please provide a reason for rejection (optional):");
-  
-  try {
-    await window.apiCall(`/api/versions/${versionTag}/reject`, {
-      method: "POST",
-      body: JSON.stringify({ reason: reason || null }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
-    
-    window.showNotification(`Version ${versionTag} rejected successfully`, "success");
-    
-    // Refresh versions list
-    await loadVersionsV2();
-    
-    // If viewing this version, refresh the detail view
-    const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
-    if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
-      if (window.showVersionDetail) {
-        await window.showVersionDetail(versionTag);
-      } else if (window.loadVersionDetail) {
-        await window.loadVersionDetail(versionTag);
-      }
-    }
-  } catch (error) {
-    console.error("Failed to reject version:", error);
-    window.showNotification(`Failed to reject version: ${error.message}`, "error");
-  }
-}
-
-/**
- * Planning agent polling
- */
-const planningAgentIntervals = new Map();
 // Track which agents we've already notified about to prevent duplicate notifications
 const notifiedAgents = new Set();
+
+// Polling constants
+const DEFAULT_POLL_INTERVAL = 15000; // 15 seconds
+const MAX_POLL_INTERVAL = 120000; // 2 minutes max
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 function startPlanningAgentPolling(versionTag, _agentTaskId) {
   // Stop existing polling for this version if any
   if (planningAgentIntervals.has(versionTag)) {
-    clearInterval(planningAgentIntervals.get(versionTag));
+    clearTimeout(planningAgentIntervals.get(versionTag));
   }
   
   // Dynamic polling interval - starts at 15s, increases if rate limited
-  let pollInterval = 15000; // 15 seconds default (increased to reduce API calls)
+  let pollInterval = DEFAULT_POLL_INTERVAL;
   let consecutiveErrors = 0;
   let lastKnownStatus = null; // Track last known status to detect changes
   
@@ -639,19 +388,19 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
         
         // Reset error counter on success
         consecutiveErrors = 0;
-        pollInterval = 15000; // Reset to default
+        pollInterval = DEFAULT_POLL_INTERVAL;
         
         // Always refresh plan stage if we're viewing it to show real-time sync status
-        const currentVersionTag = window.currentVersionTag || document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
-        if (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`) {
+        const currentVersionTag = getCurrentVersionTag();
+        if (currentVersionTag && (currentVersionTag === versionTag || currentVersionTag === `version${versionTag}`)) {
           const stageContent = document.getElementById("stage-content");
           if (stageContent && document.querySelector(".stage-nav-btn[data-stage='plan']")?.classList.contains("active")) {
             // Use the renderer from versions-stage-renderers.js which has sync history
             if (window.renderPlanStage) {
               await window.renderPlanStage(versionTag, stageContent);
             } else {
-              // Fallback to local renderPlanStage
-              await renderPlanStage(versionTag, stageContent);
+              // Fallback: show error message if renderer not available
+              stageContent.innerHTML = `<p style="color: var(--error);">Plan stage renderer not available. Please refresh the page.</p>`;
             }
           }
         }
@@ -659,7 +408,7 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
         // If rate limited, increase polling interval with exponential backoff
         if (agent.rateLimited) {
           consecutiveErrors++;
-          pollInterval = Math.min(15000 * Math.pow(2, consecutiveErrors), 120000); // Max 2 minutes
+          pollInterval = Math.min(DEFAULT_POLL_INTERVAL * Math.pow(2, consecutiveErrors), MAX_POLL_INTERVAL);
           console.log(`[Planning Agent] Rate limited for ${versionTag}, backing off to ${pollInterval / 1000}s interval`);
           
           // Schedule next poll with backoff
@@ -721,10 +470,10 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
       consecutiveErrors++;
       
       // Exponential backoff on errors
-      pollInterval = Math.min(15000 * Math.pow(2, consecutiveErrors), 120000); // Max 2 minutes
+      pollInterval = Math.min(DEFAULT_POLL_INTERVAL * Math.pow(2, consecutiveErrors), MAX_POLL_INTERVAL);
       
       // If too many errors, stop polling
-      if (consecutiveErrors >= 5) {
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
         console.warn(`[Planning Agent] Too many errors for ${versionTag}, stopping polling`);
         stopPlanningAgentPolling(versionTag);
         return;
@@ -750,11 +499,14 @@ function stopPlanningAgentPolling(versionTag) {
 
 /**
  * Refresh plan stage (reloads content and agent status)
+ * Uses the enhanced renderer from versions-stage-renderers.js
  */
 async function refreshPlanStage(versionTag) {
   const container = document.getElementById("stage-content");
-  if (container) {
-    await renderPlanStage(versionTag, container);
+  if (container && window.renderPlanStage) {
+    await window.renderPlanStage(versionTag, container);
+  } else if (container) {
+    container.innerHTML = `<p style="color: var(--error);">Plan stage renderer not available. Please refresh the page.</p>`;
   }
 }
 
@@ -769,4 +521,6 @@ window.rejectVersion = rejectVersion;
 window.startPlanningAgentPolling = startPlanningAgentPolling;
 window.stopPlanningAgentPolling = stopPlanningAgentPolling;
 window.refreshPlanStage = refreshPlanStage;
+window.getCurrentVersionTag = getCurrentVersionTag; // Helper for other modules
+window.attachVersionEventListeners = attachVersionEventListeners;
 

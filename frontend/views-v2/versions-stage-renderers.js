@@ -155,21 +155,16 @@ async function renderPlanStage(versionTag, container) {
     let agentStatus = null;
     if (agentResult.status === "fulfilled" && agentResult.value.hasAgent) {
       agentStatus = agentResult.value.agent;
-      // Debug: Log agent status for troubleshooting
-      console.log(`[Plan Stage] Agent status for ${versionTag}:`, {
-        id: agentStatus.id,
-        status: agentStatus.status,
-        statusLower: (agentStatus.status || "").toLowerCase(),
-        autoMerge: agentStatus.autoMerge,
-        agentBranch: agentStatus.agentBranch,
-        hasAgentBranch: !!agentStatus.agentBranch,
-        cloudStatus: agentStatus.cloudStatus ? {
-          target: agentStatus.cloudStatus.target,
-          branchName: agentStatus.cloudStatus.branchName,
-          targetBranchName: agentStatus.cloudStatus.target?.branchName
-        } : null,
-        fullAgentStatus: agentStatus // Log full object for debugging
-      });
+      // Debug: Log agent status for troubleshooting (only in development)
+      if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+        console.log(`[Plan Stage] Agent status for ${versionTag}:`, {
+          id: agentStatus.id,
+          status: agentStatus.status,
+          autoMerge: agentStatus.autoMerge,
+          agentBranch: agentStatus.agentBranch,
+          hasAgentBranch: !!agentStatus.agentBranch
+        });
+      }
       // Start polling if agent is still running
       const win = getWindow();
       if (agentStatus && (agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing") && win && win.startPlanningAgentPolling) {
@@ -689,22 +684,23 @@ try {
       (typeof global !== "undefined" && global.jest)
     );
     
-    // Always log the first time to debug
-    console.log("[versions-stage-renderers] IIFE executing - getWindow() returned:", {
-      hasWindow: typeof window !== "undefined",
-      hasGlobalWindow: typeof global !== "undefined" && !!global.window,
-      winType: typeof win,
-      winIsNull: win === null,
-      winIsUndefined: win === undefined,
-      renderPlanStageType: typeof renderPlanStage,
-      isTestEnv: isTestEnv
-    });
+    // Only log in test environments to reduce console noise
+    if (isTestEnv) {
+      console.log("[versions-stage-renderers] IIFE executing - getWindow() returned:", {
+        hasWindow: typeof window !== "undefined",
+        hasGlobalWindow: typeof global !== "undefined" && !!global.window,
+        winType: typeof win,
+        renderPlanStageType: typeof renderPlanStage
+      });
+    }
     
     if (win) {
       try {
         if (typeof renderPlanStage === "function") {
           win.renderPlanStage = renderPlanStage;
-          console.log("[versions-stage-renderers] ✓ Assigned renderPlanStage to window");
+          if (isTestEnv) {
+            console.log("[versions-stage-renderers] ✓ Assigned renderPlanStage to window");
+          }
         } else {
           console.error("[versions-stage-renderers] renderPlanStage is not a function:", typeof renderPlanStage);
         }
@@ -717,16 +713,6 @@ try {
         if (typeof renderReviewStage === "function") {
           win.renderReviewStage = renderReviewStage;
         }
-        // Always log final assignment
-        console.log("[versions-stage-renderers] Final assignment check:", {
-          renderPlanStage: typeof win.renderPlanStage,
-          renderImplementStage: typeof win.renderImplementStage,
-          renderTestStage: typeof win.renderTestStage,
-          renderReviewStage: typeof win.renderReviewStage,
-          windowType: typeof win,
-          isGlobalWindow: typeof global !== "undefined" && win === global.window,
-          windowKeys: Object.keys(win).filter(k => k.includes("render")).slice(0, 10)
-        });
       } catch (e) {
         console.error("[versions-stage-renderers] Error exposing functions to window:", e.message, e.stack);
       }

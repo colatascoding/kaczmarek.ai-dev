@@ -8,8 +8,14 @@
  */
 async function checkAndDisplayDecisions() {
   try {
-    // Get all executions
-    const executionsData = await window.apiCall("/api/executions").catch(() => ({ executions: [] }));
+    // Use cached executions if available from loadHome
+    let executionsData;
+    if (window._cachedExecutions && Date.now() - window._cachedExecutions.timestamp < 5000) {
+      executionsData = window._cachedExecutions.data;
+    } else {
+      executionsData = await window.apiCall("/api/executions").catch(() => ({ executions: [] }));
+      window._cachedExecutions = { data: executionsData, timestamp: Date.now() };
+    }
     const executions = executionsData.executions || [];
     
     // Find waiting executions
@@ -52,7 +58,9 @@ async function loadHome() {
       if (currentVersion) {
         document.getElementById("current-version-title").textContent = `Version ${currentVersion.tag}`;
         document.getElementById("current-version-status").textContent = currentVersion.status || "unknown";
-        document.getElementById("current-version-status").className = `status-badge ${(currentVersion.status || "unknown").toLowerCase().replace(/\s+/g, "-")}`;
+        document.getElementById("current-version-status").className = window.getStatusClass ? 
+          window.getStatusClass(currentVersion.status, "unknown") : 
+          `status-badge ${(currentVersion.status || "unknown").toLowerCase().replace(/\s+/g, "-")}`;
         
         // Load workstreams for current version
         if (window.loadWorkstreams) {
@@ -67,10 +75,16 @@ async function loadHome() {
     console.error("Failed to load current version:", error);
   }
   
-  // Load recent activity
+  // Load recent activity (reuse cached data if available)
   let waitingExecutions = [];
   try {
-    const activityData = await window.apiCall("/api/executions?limit=10");
+    let activityData;
+    if (window._cachedExecutions && Date.now() - window._cachedExecutions.timestamp < 5000) {
+      activityData = window._cachedExecutions.data;
+    } else {
+      activityData = await window.apiCall("/api/executions?limit=10");
+      window._cachedExecutions = { data: activityData, timestamp: Date.now() };
+    }
     const executions = activityData.executions || [];
     
     const activityContainer = document.getElementById("recent-activity");
@@ -85,10 +99,10 @@ async function loadHome() {
         activityContainer.innerHTML = executions.map(exec => {
           const isWaiting = exec.status === "waiting";
           return `
-          <div class="list-item-v2 ${isWaiting ? 'waiting-execution' : ''}" onclick="showExecutionDetails('${exec.executionId}')" style="cursor: pointer;">
+          <div class="list-item-v2 ${isWaiting ? 'waiting-execution' : ''}" data-execution-id="${window.escapeHtml ? window.escapeHtml(exec.executionId) : exec.executionId}" data-action="show-execution-details" style="cursor: pointer;">
             <div style="display: flex; justify-content: space-between; align-items: start;">
               <div style="flex: 1;">
-                <h4 style="margin: 0 0 0.5rem 0;">${exec.workflow?.name || exec.workflowId || "Unknown Workflow"}</h4>
+                <h4 style="margin: 0 0 0.5rem 0;">${window.escapeHtml ? window.escapeHtml(exec.workflow?.name || exec.workflowId || "Unknown Workflow") : (exec.workflow?.name || exec.workflowId || "Unknown Workflow")}</h4>
                 <p style="margin: 0; font-size: 0.875rem; color: var(--text-light);">
                   ${window.formatDateForDisplay ? window.formatDateForDisplay(exec.startedAt) : exec.startedAt}
                 </p>
@@ -298,3 +312,4 @@ window.showExecutionDetails = showExecutionDetails;
 window.loadWorkstreams = loadWorkstreams;
 window.showWorkstreamDetail = showWorkstreamDetail;
 window.checkAndDisplayDecisions = checkAndDisplayDecisions;
+window.attachHomeEventListeners = attachHomeEventListeners;
