@@ -33,3 +33,6 @@ Thumbs.db
 .env.local
 .env.*.local
 
+
+playwright-report/
+test-results/
