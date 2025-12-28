@@ -56,6 +56,21 @@ async function renderPlanStage(versionTag, container) {
     let agentStatus = null;
     if (agentResult.status === "fulfilled" && agentResult.value.hasAgent) {
       agentStatus = agentResult.value.agent;
+      // Debug: Log agent status for troubleshooting
+      console.log(`[Plan Stage] Agent status for ${versionTag}:`, {
+        id: agentStatus.id,
+        status: agentStatus.status,
+        statusLower: (agentStatus.status || "").toLowerCase(),
+        autoMerge: agentStatus.autoMerge,
+        agentBranch: agentStatus.agentBranch,
+        hasAgentBranch: !!agentStatus.agentBranch,
+        cloudStatus: agentStatus.cloudStatus ? {
+          target: agentStatus.cloudStatus.target,
+          branchName: agentStatus.cloudStatus.branchName,
+          targetBranchName: agentStatus.cloudStatus.target?.branchName
+        } : null,
+        fullAgentStatus: agentStatus // Log full object for debugging
+      });
       // Start polling if agent is still running
       if (agentStatus && (agentStatus.status === "running" || agentStatus.status === "CREATING" || agentStatus.status === "processing") && window.startPlanningAgentPolling) {
         window.startPlanningAgentPolling(versionTag, agentStatus.id);
@@ -138,12 +153,12 @@ async function renderPlanStage(versionTag, container) {
               <span style="padding: 0.25rem 0.75rem; background: ${(() => {
             const status = String(agentStatus.status || "").toLowerCase();
             const isRunning = status === "running" || status === "creating" || status === "processing";
-            const isCompleted = status === "completed";
+            const isCompleted = status === "completed" || status === "finished";
             return isRunning ? "var(--primary)" : isCompleted ? "var(--success)" : "var(--error)";
           })()}; color: white; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600;">
                 ${(() => {
             const status = String(agentStatus.status || "").toUpperCase();
-            return status === "RUNNING" || status === "CREATING" ? "Running" : status === "PROCESSING" ? "Processing" : status === "COMPLETED" ? "Completed" : status === "FAILED" ? "Failed" : status || "Unknown";
+            return status === "RUNNING" || status === "CREATING" ? "Running" : status === "PROCESSING" ? "Processing" : status === "COMPLETED" || status === "FINISHED" ? "Completed" : status === "FAILED" ? "Failed" : status || "Unknown";
           })()}
               </span>
             </div>
@@ -178,7 +193,7 @@ async function renderPlanStage(versionTag, container) {
               </div>
             ` : (() => {
             const status = (agentStatus.status || "").toLowerCase();
-            return status === "completed";
+            return status === "completed" || status === "finished";
           })() ? `
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
                 Planning agent has completed. Goals have been generated.

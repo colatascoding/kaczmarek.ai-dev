@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning Agent Status UI Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      padding: 2rem;
+      background: #f5f5f5;
+    }
+    
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      margin-bottom: 2rem;
+      color: #333;
+    }
+    
+    .test-case {
+      margin-bottom: 3rem;
+      padding: 1.5rem;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border-left: 4px solid #007bff;
+    }
+    
+    .test-case h2 {
+      margin-bottom: 1rem;
+      color: #007bff;
+      font-size: 1.2rem;
+    }
+    
+    .test-case p {
+      margin-bottom: 1rem;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .stage-content {
+      margin-top: 1rem;
+    }
+    
+    /* Import styles from the actual app */
+    :root {
+      --primary: #007bff;
+      --primary-dark: #0056b3;
+      --primary-light: #e7f3ff;
+      --success: #4caf50;
+      --success-light: #e8f5e9;
+      --error: #f44336;
+      --error-bg: #fee;
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --text: #333;
+      --text-light: #666;
+      --border: #ddd;
+      --radius: 6px;
+      --radius-sm: 4px;
+    }
+  </style>
+  <link rel="stylesheet" href="../styles-v2.css">
+</head>
+<body>
+  <div class="test-container">
+    <h1>Planning Agent Status UI Tests</h1>
+    <p style="margin-bottom: 2rem; color: #666;">This page tests the rendering of planning agent status with various scenarios using mocked data.</p>
+    
+    <!-- Test Case 1: Completed Agent with Branch -->
+    <div class="test-case">
+      <h2>Test 1: Completed Agent with Branch</h2>
+      <p><strong>Expected:</strong> Should show "✓ Planning Agent Completed", branch name, and "Merge Branch" button</p>
+      <div id="test-1" class="stage-content"></div>
+    </div>
+    
+    <!-- Test Case 2: Completed Agent with Branch and Auto-Merge -->
+    <div class="test-case">
+      <h2>Test 2: Completed Agent with Branch and Auto-Merge</h2>
+      <p><strong>Expected:</strong> Should show branch, auto-merge indicator, and merge button</p>
+      <div id="test-2" class="stage-content"></div>
+    </div>
+    
+    <!-- Test Case 3: Running Agent with Auto-Merge -->
+    <div class="test-case">
+      <h2>Test 3: Running Agent with Auto-Merge</h2>
+      <p><strong>Expected:</strong> Should show "🤖 Planning Agent Running" and auto-merge indicator (no branch yet)</p>
+      <div id="test-3" class="stage-content"></div>
+    </div>
+    
+    <!-- Test Case 4: Completed Agent without Branch -->
+    <div class="test-case">
+      <h2>Test 4: Completed Agent without Branch</h2>
+      <p><strong>Expected:</strong> Should show completed status but no branch info or merge button</p>
+      <div id="test-4" class="stage-content"></div>
+    </div>
+    
+    <!-- Test Case 5: Failed Agent -->
+    <div class="test-case">
+      <h2>Test 5: Failed Agent</h2>
+      <p><strong>Expected:</strong> Should show "✗ Planning Agent Failed" with error message</p>
+      <div id="test-5" class="stage-content"></div>
+    </div>
+    
+    <!-- Test Case 6: Agent with Sync History -->
+    <div class="test-case">
+      <h2>Test 6: Agent with Sync History</h2>
+      <p><strong>Expected:</strong> Should show "Last synced" timestamp and collapsible sync history</p>
+      <div id="test-6" class="stage-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // Mock data for different test scenarios
+    const mockData = {
+      test1: {
+        summary: { stage: "plan", status: "completed", progress: 100 },
+        agent: {
+          id: "bc-8822b28b-1ffb-430e-a487-a8f18a22e4c7",
+          status: "completed",
+          agentBranch: "cursor/version-0-13-plan-318e",
+          autoMerge: false,
+          mergeStrategy: "merge"
+        }
+      },
+      test2: {
+        summary: { stage: "plan", status: "completed", progress: 100 },
+        agent: {
+          id: "test-agent-2",
+          status: "completed",
+          agentBranch: "cursor/version-0-14-plan-abc",
+          autoMerge: true,
+          mergeStrategy: "squash"
+        }
+      },
+      test3: {
+        summary: { stage: "plan", status: "in-progress", progress: 50 },
+        agent: {
+          id: "test-agent-3",
+          status: "running",
+          agentBranch: null,
+          autoMerge: true,
+          mergeStrategy: "merge"
+        }
+      },
+      test4: {
+        summary: { stage: "plan", status: "completed", progress: 100 },
+        agent: {
+          id: "test-agent-4",
+          status: "completed",
+          agentBranch: null,
+          autoMerge: false
+        }
+      },
+      test5: {
+        summary: { stage: "plan", status: "in-progress", progress: 50 },
+        agent: {
+          id: "test-agent-5",
+          status: "failed",
+          error: "Agent failed to complete",
+          autoMerge: false
+        }
+      },
+      test6: {
+        summary: { stage: "plan", status: "completed", progress: 100 },
+        agent: {
+          id: "test-agent-6",
+          status: "completed",
+          agentBranch: "cursor/version-0-15-plan-xyz",
+          autoMerge: true,
+          lastSynced: "2025-12-28T08:05:00.000Z",
+          syncHistory: [
+            {
+              timestamp: "2025-12-28T08:00:00.000Z",
+              previousStatus: "running",
+              newStatus: "completed",
+              statusChanged: true,
+              success: true
+            },
+            {
+              timestamp: "2025-12-28T08:05:00.000Z",
+              previousStatus: "completed",
+              newStatus: "completed",
+              statusChanged: false,
+              success: true
+            }
+          ]
+        }
+      }
+    };
+
+    // Simplified render function for testing (extracted from versions-stage-renderers.js)
+    function renderAgentStatus(agentStatus, summary) {
+      if (!agentStatus) return "";
+      
+      const status = (agentStatus.status || "").toLowerCase();
+      const isRunning = status === "running" || status === "creating" || status === "processing";
+      const isCompleted = status === "completed" || status === "finished";
+      const isFailed = status === "failed";
+      
+      const statusColor = isRunning ? "var(--primary)" : isCompleted ? "var(--success)" : "var(--error)";
+      const bgColor = isRunning ? "var(--primary-light)" : isCompleted ? "var(--success-light)" : "var(--error-bg)";
+      const borderColor = isRunning ? "var(--primary)" : isCompleted ? "var(--success)" : "var(--error)";
+      
+      const statusText = isRunning ? "🤖 Planning Agent Running" : isCompleted ? "✓ Planning Agent Completed" : "✗ Planning Agent Failed";
+      
+      let html = `
+        <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+            <div>
+              <h4 style="margin: 0; color: ${statusColor};">
+                ${statusText}
+              </h4>
+              ${agentStatus.id ? `
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                  Agent ID: <code>${agentStatus.id.substring(0, 16)}...</code>
+                </p>
+              ` : ""}
+              ${agentStatus.lastSynced ? `
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                  Last synced: ${new Date(agentStatus.lastSynced).toLocaleString()}
+                </p>
+              ` : ""}
+            </div>
+          </div>
+      `;
+      
+      if (isRunning) {
+        html += `
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
+            Planning agent is running. This may take a few minutes...
+          </p>
+          ${agentStatus.autoMerge === true ? `
+            <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.2rem;">🔄</span>
+                <div>
+                  <strong style="font-size: 0.875rem; color: var(--primary);">Auto-merge enabled</strong>
+                  <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                    The agent's branch will be automatically merged when planning completes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ` : ""}
+        `;
+      } else if (isCompleted) {
+        html += `
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
+            Planning agent has completed. Goals have been generated.
+          </p>
+          ${agentStatus.agentBranch ? `
+            <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                  <span style="font-size: 1.2rem;">🔄</span>
+                  <div>
+                    <strong style="font-size: 0.875rem; color: var(--primary);">
+                      ${agentStatus.autoMerge === true ? "Auto-merge enabled" : "Agent branch ready"}
+                    </strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                      Branch: <code style="font-size: 0.7rem; background: var(--bg); padding: 0.125rem 0.25rem; border-radius: 2px;">${agentStatus.agentBranch}</code>
+                      ${agentStatus.autoMerge === true ? " (will merge automatically)" : " (ready to merge)"}
+                    </p>
+                  </div>
+                </div>
+                <button onclick="alert('Merge button clicked for: ${agentStatus.agentBranch}')" 
+                        style="padding: 0.5rem 1rem; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                        onmouseover="this.style.background='var(--primary-dark)'"
+                        onmouseout="this.style.background='var(--primary)'">
+                  Merge Branch
+                </button>
+              </div>
+            </div>
+          ` : agentStatus.autoMerge === true ? `
+            <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.2rem;">🔄</span>
+                <div>
+                  <strong style="font-size: 0.875rem; color: var(--primary);">Auto-merge enabled</strong>
+                  <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                    Branch information not yet available. Auto-merge will be attempted when branch is detected.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ` : ""}
+        `;
+      } else if (isFailed) {
+        html += `
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
+            Planning agent failed: ${agentStatus.error || "Unknown error"}
+          </p>
+        `;
+      }
+      
+      // Sync History
+      if (agentStatus.syncHistory && agentStatus.syncHistory.length > 0) {
+        html += `
+          <div style="margin-top: 1rem;">
+            <button onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" 
+                    style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.875rem; text-decoration: underline;">
+              Show Sync History (${agentStatus.syncHistory.length} entries)
+            </button>
+            <div style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: var(--radius-sm); font-size: 0.75rem;">
+              ${agentStatus.syncHistory.map(entry => `
+                <div style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
+                  <div style="font-weight: 600; margin-bottom: 0.25rem;">
+                    ${new Date(entry.timestamp).toLocaleString()}
+                  </div>
+                  ${entry.statusChanged ? `
+                    <div style="color: var(--primary);">
+                      Status changed: ${entry.previousStatus} → ${entry.newStatus}
+                    </div>
+                  ` : `
+                    <div style="color: var(--text-light);">
+                      Status: ${entry.newStatus} (no change)
+                    </div>
+                  `}
+                  ${entry.error ? `
+                    <div style="color: var(--error); margin-top: 0.25rem;">
+                      Error: ${entry.error}
+                    </div>
+                  ` : ""}
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+      
+      html += `</div>`;
+      return html;
+    }
+
+    // Render all test cases
+    Object.keys(mockData).forEach((key, index) => {
+      const testNum = index + 1;
+      const container = document.getElementById(`test-${testNum}`);
+      if (container) {
+        const data = mockData[key];
+        container.innerHTML = renderAgentStatus(data.agent, data.summary);
+      }
+    });
+  </script>
+</body>
+</html>
+
