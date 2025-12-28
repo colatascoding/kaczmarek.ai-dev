@@ -36,6 +36,28 @@ function setupNavigation() {
       const view = btn.dataset.view;
       switchView(view);
     });
+    
+    // Add keyboard navigation
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const view = btn.dataset.view;
+        switchView(view);
+      }
+    });
+  });
+  
+  // Add keyboard shortcuts for navigation
+  document.addEventListener("keydown", (e) => {
+    // Alt + number for quick navigation
+    if (e.altKey && e.key >= "1" && e.key <= "6") {
+      e.preventDefault();
+      const views = ["dashboard", "dashboards", "workflows", "agents", "executions", "versions"];
+      const index = parseInt(e.key) - 1;
+      if (views[index]) {
+        switchView(views[index]);
+      }
+    }
   });
 }
 
@@ -46,6 +68,31 @@ function switchView(view) {
   currentView = view;
   window.currentView = view;
   
+  // Update URL if router is available
+  if (window.router) {
+    const routeMap = {
+      'dashboard': '/dashboard',
+      'dashboards': '/dashboards',
+      'workflows': '/workflows',
+      'agents': '/agents',
+      'executions': '/executions',
+      'versions': '/versions'
+    };
+    
+    if (routeMap[view]) {
+      window.router.navigate(routeMap[view]);
+      return; // Router will handle the rest
+    }
+  }
+  
+  // Fallback to manual switching if router not available
+  switchViewManual(view);
+}
+
+/**
+ * Manual view switching (fallback)
+ */
+function switchViewManual(view) {
   // Update nav
   document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.view === view);

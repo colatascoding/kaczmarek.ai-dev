@@ -5,26 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>kaczmarek.ai-dev Dashboard</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/components.css">
 </head>
 <body>
   <div class="app">
     <!-- Header -->
     <header class="header">
       <h1>kaczmarek.ai-dev</h1>
-      <nav class="nav">
-        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
-        <button class="nav-btn" data-view="dashboards">Dashboards</button>
-        <button class="nav-btn" data-view="workflows">Workflows</button>
-        <button class="nav-btn" data-view="agents">Agents</button>
-        <button class="nav-btn" data-view="executions">Executions</button>
-        <button class="nav-btn" data-view="versions">Versions</button>
+      <nav class="nav" role="navigation" aria-label="Main navigation">
+        <button class="nav-btn active" data-view="dashboard" aria-label="Dashboard view" aria-current="page">Dashboard</button>
+        <button class="nav-btn" data-view="dashboards" aria-label="Dashboards view">Dashboards</button>
+        <button class="nav-btn" data-view="workflows" aria-label="Workflows view">Workflows</button>
+        <button class="nav-btn" data-view="agents" aria-label="Agents view">Agents</button>
+        <button class="nav-btn" data-view="executions" aria-label="Executions view">Executions</button>
+        <button class="nav-btn" data-view="versions" aria-label="Versions view">Versions</button>
       </nav>
     </header>
 
     <!-- Main Content -->
-    <main class="main">
+    <main class="main" role="main">
       <!-- Dashboard View -->
-      <div id="dashboard-view" class="view active">
+      <div id="dashboard-view" class="view active" role="region" aria-label="Dashboard">
         <h2>Dashboard</h2>
         <div class="stats-grid">
           <div class="stat-card">
@@ -94,19 +95,19 @@
       </div>
 
       <!-- Workflows View -->
-      <div id="workflows-view" class="view">
+      <div id="workflows-view" class="view" role="region" aria-label="Workflows">
         <div class="view-header">
           <h2>Workflows</h2>
-          <button class="btn btn-primary" onclick="loadWorkflows()">Refresh</button>
+          <button class="btn btn-primary" onclick="loadWorkflows()" aria-label="Refresh workflows list">Refresh</button>
         </div>
-        <div id="workflows-list" class="list"></div>
+        <div id="workflows-list" class="list" role="list" aria-label="Workflows list"></div>
       </div>
 
       <!-- Agents View -->
-      <div id="agents-view" class="view">
+      <div id="agents-view" class="view" role="region" aria-label="Agent Tasks">
         <div class="view-header">
           <h2>Agent Tasks</h2>
-          <button class="btn btn-primary" onclick="loadAgents()">Refresh</button>
+          <button class="btn btn-primary" onclick="loadAgents()" aria-label="Refresh agents list">Refresh</button>
         </div>
         
         <!-- Status Definitions (Compact) -->
@@ -158,25 +159,25 @@
           </div>
         </div>
         
-        <div id="agents-list" class="list"></div>
+        <div id="agents-list" class="list" role="list" aria-label="Agent tasks list"></div>
       </div>
 
       <!-- Executions View -->
-      <div id="executions-view" class="view">
+      <div id="executions-view" class="view" role="region" aria-label="Execution History">
         <div class="view-header">
           <h2>Execution History</h2>
-          <button class="btn btn-primary" onclick="loadExecutions()">Refresh</button>
+          <button class="btn btn-primary" onclick="loadExecutions()" aria-label="Refresh executions list">Refresh</button>
         </div>
-        <div id="executions-list" class="list"></div>
+        <div id="executions-list" class="list" role="list" aria-label="Executions list"></div>
       </div>
 
       <!-- Versions View -->
-      <div id="versions-view" class="view">
+      <div id="versions-view" class="view" role="region" aria-label="Versions">
         <div class="view-header">
           <h2>Versions</h2>
-          <button class="btn btn-primary" onclick="loadVersions()">Refresh</button>
+          <button class="btn btn-primary" onclick="loadVersions()" aria-label="Refresh versions list">Refresh</button>
         </div>
-        <div id="versions-list" class="list"></div>
+        <div id="versions-list" class="list" role="list" aria-label="Versions list"></div>
       </div>
 
       <!-- Dashboards View -->
@@ -205,6 +206,10 @@
 
   <!-- Load utilities first -->
   <script src="/static/utils.js"></script>
+  <script src="/static/state.js"></script>
+  <script src="/static/error-handler.js"></script>
+  <script src="/static/components.js"></script>
+  <script src="/static/router.js"></script>
   <!-- Load view modules -->
   <script src="/static/views/dashboard.js"></script>
   <script src="/static/views/dashboards.js"></script>

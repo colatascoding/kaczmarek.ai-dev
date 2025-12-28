@@ -6,13 +6,56 @@
  * Load workflows
  */
 async function loadWorkflows() {
+  const container = document.getElementById("workflows-list");
+  
+  // Show loading state
+  if (container && window.createSkeletonLoader) {
+    container.innerHTML = '';
+    container.appendChild(window.createSkeletonLoader('card', 3));
+  }
+  
+  // Update state
+  if (window.setState) {
+    window.setState({ loading: { ...window.getState('loading'), workflows: true } });
+  }
+  
   try {
     const data = await window.apiCall("/api/workflows");
-    renderWorkflows(data.workflows || []);
+    const workflows = data.workflows || [];
+    
+    // Update state
+    if (window.setState) {
+      window.setState({ 
+        workflows,
+        loading: { ...window.getState('loading'), workflows: false },
+        errors: { ...window.getState('errors'), workflows: null }
+      });
+    }
+    
+    renderWorkflows(workflows);
   } catch (error) {
     console.error("Failed to load workflows:", error);
-    document.getElementById("workflows-list").innerHTML = 
-      `<div class="empty-state"><p>Failed to load workflows: ${error.message}</p></div>`;
+    
+    // Update state
+    if (window.setState) {
+      window.setState({ 
+        loading: { ...window.getState('loading'), workflows: false },
+        errors: { ...window.getState('errors'), workflows: error }
+      });
+    }
+    
+    // Show error using error handler
+    if (window.showError && container) {
+      window.showError(container, error, {
+        title: 'Failed to Load Workflows',
+        showRetry: true,
+        onRetry: loadWorkflows
+      });
+    } else {
+      // Fallback
+      container.innerHTML = 
+        `<div class="empty-state"><p>Failed to load workflows: ${error.message}</p></div>`;
+    }
   }
 }
 
@@ -23,7 +66,16 @@ function renderWorkflows(workflows) {
   const container = document.getElementById("workflows-list");
   
   if (workflows.length === 0) {
-    container.innerHTML = `<div class="empty-state"><h3>No workflows found</h3><p>Create workflows in the workflows/ directory</p></div>`;
+    if (window.createEmptyState) {
+      container.innerHTML = '';
+      container.appendChild(window.createEmptyState(
+        'No workflows found. Create workflows in the workflows/ directory.',
+        'Refresh',
+        loadWorkflows
+      ));
+    } else {
+      container.innerHTML = `<div class="empty-state"><h3>No workflows found</h3><p>Create workflows in the workflows/ directory</p></div>`;
+    }
     return;
   }
   
