@@ -176,11 +176,32 @@ async function apiCall(endpoint, options = {}) {
     });
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
+      // Try to get error details from response
+      let errorMessage = `API error: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = typeof errorData.error === 'string' 
+            ? errorData.error 
+            : errorData.error.message || errorMessage;
+        }
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      error.response = response;
+      throw error;
     }
     
     return await response.json();
   } catch (error) {
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      const networkError = new Error('Network error: Unable to connect to server. Please check your connection.');
+      networkError.type = 'network';
+      throw networkError;
+    }
     console.error("API call failed:", error);
     throw error;
   }
@@ -221,13 +242,66 @@ function escapeHtml(text) {
 }
 
 /**
- * Clean version tag by removing "version" prefix
+ * Normalize version tag (removes "version" prefix, handles null/undefined)
+ * @param {string|null|undefined} versionTag - Version tag to normalize
+ * @returns {string|null} Normalized version tag or null
+ */
+function normalizeVersionTag(versionTag) {
+  if (!versionTag) return null;
+  const cleaned = String(versionTag).replace(/^version/i, '').trim();
+  return cleaned || null;
+}
+
+/**
+ * Format version tag for display (adds "version" prefix if needed)
+ * @param {string|null|undefined} versionTag - Version tag to format
+ * @returns {string} Formatted version tag
+ */
+function formatVersionTag(versionTag) {
+  const normalized = normalizeVersionTag(versionTag);
+  return normalized ? `version${normalized}` : '';
+}
+
+/**
+ * Clean version tag by removing "version" prefix (legacy function for backward compatibility)
  * @param {string} versionTag - Version tag to clean
  * @returns {string} Cleaned version tag
  */
 function cleanVersionTag(versionTag) {
-  if (!versionTag) return "";
-  return String(versionTag).replace(/^version/, "");
+  const normalized = normalizeVersionTag(versionTag);
+  return normalized || "";
+}
+
+/**
+ * Get execution ID from agent object (normalizes different structures)
+ * @param {Object} agent - Agent object
+ * @returns {string|null} Execution ID or null
+ */
+function getExecutionId(agent) {
+  if (!agent) return null;
+  
+  // Try execution object first
+  if (agent.execution) {
+    return agent.execution.executionId || agent.execution.id || null;
+  }
+  
+  // Try root level
+  if (agent.executionId) {
+    return agent.executionId;
+  }
+  
+  return null;
+}
+
+/**
+ * Validate if a string looks like a valid ID (UUID or similar)
+ * @param {string} id - ID to validate
+ * @returns {boolean} True if valid format
+ */
+function isValidId(id) {
+  if (!id || typeof id !== 'string') return false;
+  // UUID format or alphanumeric with dashes/underscores, at least 8 chars
+  return /^[a-zA-Z0-9_-]{8,}$/.test(id);
 }
 
 /**
@@ -307,6 +381,10 @@ function groupBy(items, keyFn) {
 
 window.escapeHtml = escapeHtml;
 window.cleanVersionTag = cleanVersionTag;
+window.normalizeVersionTag = normalizeVersionTag;
+window.formatVersionTag = formatVersionTag;
+window.getExecutionId = getExecutionId;
+window.isValidId = isValidId;
 window.getStatusClass = getStatusClass;
 window.getOrCreateModal = getOrCreateModal;
 window.closeModalV2 = closeModalV2;

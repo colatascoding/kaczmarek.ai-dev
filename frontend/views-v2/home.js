@@ -245,10 +245,30 @@ function renderWorkstreams(workstreams) {
  * Calculate workstream progress
  */
 function calculateWorkstreamProgress(workstream) {
-  const tasks = workstream.metadata?.tasks || [];
-  if (tasks.length === 0) return 0;
+  // Check if workstream is already marked as completed
+  if (workstream.status === 'completed') {
+    return 100;
+  }
   
-  const completed = tasks.filter(t => t.completed).length;
+  // Validate tasks array
+  const tasks = Array.isArray(workstream.metadata?.tasks) 
+    ? workstream.metadata.tasks 
+    : [];
+  
+  if (tasks.length === 0) {
+    // If no tasks but workstream has a status, return based on status
+    return workstream.status === 'completed' ? 100 : 0;
+  }
+  
+  // Count completed tasks (handle both boolean and string "true")
+  const completed = tasks.filter(t => {
+    const isCompleted = t.completed === true || 
+                       t.completed === 'true' || 
+                       t.status === 'completed' ||
+                       (typeof t.completed === 'string' && t.completed.toLowerCase() === 'true');
+    return isCompleted;
+  }).length;
+  
   return Math.round((completed / tasks.length) * 100);
 }
 

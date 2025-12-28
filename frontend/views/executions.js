@@ -27,23 +27,40 @@ function renderExecutions(executions, containerId) {
     return;
   }
   
-  container.innerHTML = executions.map(exec => `
-    <div class="list-item" onclick="showExecutionDetails('${exec.executionId}')">
+  container.innerHTML = executions.map(exec => {
+    const executionId = window.escapeHtml(exec.executionId || "");
+    const workflowName = window.escapeHtml(exec.workflow?.name || exec.workflowId || "Unknown");
+    const workflowId = exec.workflow?.id ? window.escapeHtml(exec.workflow.id) : "";
+    const status = window.escapeHtml(exec.status || "unknown");
+    const versionTag = (exec.workflow?.versionTag || exec.versionTag) 
+      ? window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(exec.workflow?.versionTag || exec.versionTag) : (exec.workflow?.versionTag || exec.versionTag))
+      : "";
+    
+    return `
+    <div class="list-item" data-execution-id="${executionId}" data-action="show-details" style="cursor: pointer;">
       <div class="list-item-header">
-        <div class="list-item-title">${exec.workflow?.name || exec.workflowId || "Unknown"}</div>
-        <span class="status-badge ${exec.status}">${exec.status}</span>
+        <div class="list-item-title">${workflowName}</div>
+        <span class="status-badge ${status}">${status}</span>
       </div>
       <div class="list-item-body">
-        <p><strong>Execution ID:</strong> ${exec.executionId}</p>
-        <p><strong>Workflow:</strong> ${exec.workflow?.name || exec.workflowId || "Unknown"}</p>
-        ${exec.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.workflow.versionTag}</span></p>` : ""}
-        ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
+        <p><strong>Execution ID:</strong> ${executionId}</p>
+        <p><strong>Workflow:</strong> ${workflowName}</p>
+        ${versionTag ? `<p><strong>Version:</strong> <span class="version-link">${versionTag}</span></p>` : ""}
         <p><strong>Started:</strong> ${window.formatDateForDisplay(exec.startedAt)}</p>
         ${exec.completedAt ? `<p><strong>Completed:</strong> ${window.formatDateForDisplay(exec.completedAt)}</p>` : ""}
         ${exec.agentCount > 0 ? `<p><strong>Agents:</strong> ${exec.agentCount}</p>` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
+  
+  // Attach event listeners
+  container.querySelectorAll('[data-action="show-details"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const executionId = el.dataset.executionId;
+      if (executionId) showExecutionDetails(executionId);
+    });
+  });
 }
 
 /**
@@ -80,21 +97,37 @@ async function showExecutionDetails(executionId) {
       hasFollowUps: exec.followUpSuggestions && Array.isArray(exec.followUpSuggestions) && exec.followUpSuggestions.length > 0
     });
     
+    if (!exec) {
+      window.showNotification("Execution not found", "error");
+      return;
+    }
+    
     const modalBody = document.getElementById("modal-body");
+    const executionIdEscaped = window.escapeHtml(executionId);
+    const execIdEscaped = window.escapeHtml(exec.executionId || executionId);
+    const workflowName = data.workflow?.name ? window.escapeHtml(data.workflow.name) : window.escapeHtml(exec.workflowId || "Unknown");
+    const workflowId = data.workflow?.id ? window.escapeHtml(data.workflow.id) : "";
+    const status = window.escapeHtml(exec.status || "unknown");
+    const versionTag = (data.workflow?.versionTag || exec.versionTag) 
+      ? window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(data.workflow?.versionTag || exec.versionTag) : (data.workflow?.versionTag || exec.versionTag))
+      : "";
+    const summary = exec.summary ? window.escapeHtml(exec.summary.substring(0, 500)) + (exec.summary.length > 500 ? '...' : '') : "";
+    const executionMode = exec.executionMode === "step" ? "Step-by-step" : "Automatic";
+    
     modalBody.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2 style="margin: 0;">Execution: ${exec.executionId}</h2>
+        <h2 style="margin: 0;">Execution: ${execIdEscaped}</h2>
         <div style="display: flex; gap: 0.5rem;">
           ${!exec.outcome && exec.status === "completed" ? `
-            <button class="btn btn-secondary" onclick="recalculateOutcome('${executionId}')" title="Recalculate outcome and follow-up suggestions">
+            <button class="btn btn-secondary" data-action="recalculate-outcome" data-execution-id="${executionIdEscaped}" title="Recalculate outcome and follow-up suggestions">
               🔄 Recalculate Outcome
             </button>
           ` : ""}
-          <button class="btn btn-primary" onclick="copyExecutionSummary('${executionId}')" title="Copy execution summary to clipboard for debugging">
+          <button class="btn btn-primary" data-action="copy-execution-summary" data-execution-id="${executionIdEscaped}" title="Copy execution summary to clipboard for debugging">
             📋 Copy Summary
           </button>
           ${exec.summary ? `
-            <button class="btn btn-secondary" onclick="showExecutionSummary('${executionId}')" title="View execution summary">
+            <button class="btn btn-secondary" data-action="show-execution-summary" data-execution-id="${executionIdEscaped}" title="View execution summary">
               📄 View Summary
             </button>
           ` : ""}
@@ -105,26 +138,25 @@ async function showExecutionDetails(executionId) {
         <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h3 style="margin: 0; font-size: 1rem;">Execution Summary</h3>
-            <button class="btn btn-sm btn-secondary" onclick="showExecutionSummary('${executionId}')" title="View full summary">
+            <button class="btn btn-sm btn-secondary" data-action="show-execution-summary" data-execution-id="${executionIdEscaped}" title="View full summary">
               View Full
             </button>
           </div>
-          <pre style="margin: 0; padding: 0.75rem; background: white; border-radius: 0.375rem; font-size: 0.8125rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">${exec.summary.substring(0, 500)}${exec.summary.length > 500 ? '...' : ''}</pre>
+          <pre style="margin: 0; padding: 0.75rem; background: white; border-radius: 0.375rem; font-size: 0.8125rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">${summary}</pre>
         </div>
       ` : ""}
-      <p><strong>Workflow:</strong> ${data.workflow ? `<a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${data.workflow.id}'); return false;">${data.workflow.name}</a>` : exec.workflowId || "Unknown"}</p>
-      ${data.workflow?.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${data.workflow.versionTag}</span></p>` : ""}
-      ${exec.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${exec.versionTag}</span></p>` : ""}
-      <p><strong>Status:</strong> <span class="status-badge ${exec.status}">${exec.status}</span></p>
-      <p><strong>Execution Mode:</strong> ${exec.executionMode === "step" ? "Step-by-step" : "Automatic"}</p>
-      ${exec.outcome ? `<p><strong>Outcome:</strong> <span style="padding: 0.25rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.875rem;">${exec.outcome}</span></p>` : ""}
+      <p><strong>Workflow:</strong> ${data.workflow && workflowId ? `<a href="#" data-action="show-workflow-modal" data-workflow-id="${workflowId}" style="color: var(--primary); text-decoration: underline;">${workflowName}</a>` : workflowName}</p>
+      ${versionTag ? `<p><strong>Version:</strong> <span class="version-link">${versionTag}</span></p>` : ""}
+      <p><strong>Status:</strong> <span class="status-badge ${status}">${status}</span></p>
+      <p><strong>Execution Mode:</strong> ${executionMode}</p>
+      ${exec.outcome ? `<p><strong>Outcome:</strong> <span style="padding: 0.25rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.875rem;">${window.escapeHtml(exec.outcome)}</span></p>` : ""}
       <p><strong>Started:</strong> ${window.formatDateForDisplay(exec.startedAt)}</p>
       ${exec.completedAt ? `<p><strong>Completed:</strong> ${window.formatDateForDisplay(exec.completedAt)}</p>` : ""}
       ${exec.executionMode === "step" && exec.status === "paused" ? `
         <div style="margin: 1rem 0; padding: 0.75rem; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 0.5rem;">
           <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem;"><strong>Step-by-step mode:</strong> Execution is paused after the last step. Use the controls below to continue.</p>
           <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-primary btn-sm" onclick="runNextStep('${exec.executionId}')">
+            <button class="btn btn-primary btn-sm" data-action="run-next-step" data-execution-id="${executionIdEscaped}">
               ▶ Run next step
             </button>
           </div>
@@ -138,20 +170,26 @@ async function showExecutionDetails(executionId) {
             Based on the workflow outcome, here are suggested next steps:
           </p>
           <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            ${exec.followUpSuggestions.map((suggestion, idx) => `
+            ${exec.followUpSuggestions.map((suggestion, idx) => {
+              const suggestionName = window.escapeHtml(suggestion.name || suggestion.workflowId || "");
+              const suggestionDesc = window.escapeHtml(suggestion.description || "");
+              const suggestionReason = suggestion.reason ? window.escapeHtml(suggestion.reason) : "";
+              const suggestionWorkflowId = window.escapeHtml(suggestion.workflowId || "");
+              return `
               <div style="padding: 0.75rem; background: white; border-radius: 0.375rem; border: 1px solid #93c5fd;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
                   <div>
-                    <strong style="color: #1e40af;">${suggestion.name || suggestion.workflowId}</strong>
-                    <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #1e3a8a;">${suggestion.description || ""}</p>
-                    ${suggestion.reason ? `<p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: #64748b; font-style: italic;">${suggestion.reason}</p>` : ""}
+                    <strong style="color: #1e40af;">${suggestionName}</strong>
+                    ${suggestionDesc ? `<p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #1e3a8a;">${suggestionDesc}</p>` : ""}
+                    ${suggestionReason ? `<p style="margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: #64748b; font-style: italic;">${suggestionReason}</p>` : ""}
                   </div>
-                  <button class="btn btn-primary btn-sm" onclick="runFollowUpWorkflow('${suggestion.workflowId}', '${exec.executionId}')" title="Run this follow-up workflow">
+                  <button class="btn btn-primary btn-sm" data-action="run-followup-workflow" data-workflow-id="${suggestionWorkflowId}" data-execution-id="${executionIdEscaped}" title="Run this follow-up workflow">
                     ▶ Run
                   </button>
                 </div>
               </div>
-            `).join("")}
+            `;
+            }).join("")}
           </div>
         </div>
       ` : ""}
@@ -159,14 +197,18 @@ async function showExecutionDetails(executionId) {
       ${data.agents?.length > 0 ? `
         <h3 style="margin-top: 1.5rem;">Agents (${data.agents.length})</h3>
         <ul>
-          ${data.agents.map(a => `
+          ${data.agents.map(a => {
+            const agentId = window.escapeHtml(a.id || "");
+            const agentStatus = window.escapeHtml(a.status || "unknown");
+            return `
             <li>
-              <a href="#" onclick="closeModal(); switchView('agents'); showAgentDetails('${a.id}'); return false;">
-                ${a.id.substring(0, 8)}...
+              <a href="#" data-action="show-agent-modal" data-agent-id="${agentId}" style="color: var(--primary); text-decoration: underline;">
+                ${agentId.substring(0, 8)}...
               </a>
-              - ${a.status}
+              - ${agentStatus}
             </li>
-          `).join("")}
+          `;
+          }).join("")}
         </ul>
       ` : ""}
       
@@ -250,9 +292,58 @@ async function showExecutionDetails(executionId) {
     
     window.currentExecutionData = data;
     
+    // Attach event listeners
+    modalBody.querySelector('[data-action="recalculate-outcome"]')?.addEventListener('click', () => {
+      recalculateOutcome(executionId);
+    });
+    
+    modalBody.querySelector('[data-action="copy-execution-summary"]')?.addEventListener('click', () => {
+      copyExecutionSummary(executionId);
+    });
+    
+    modalBody.querySelectorAll('[data-action="show-execution-summary"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showExecutionSummary(executionId);
+      });
+    });
+    
+    modalBody.querySelector('[data-action="run-next-step"]')?.addEventListener('click', () => {
+      runNextStep(executionId);
+    });
+    
+    modalBody.querySelectorAll('[data-action="run-followup-workflow"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const workflowId = btn.dataset.workflowId;
+        runFollowUpWorkflow(workflowId, executionId);
+      });
+    });
+    
+    modalBody.querySelector('[data-action="show-workflow-modal"]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const workflowId = e.target.dataset.workflowId;
+      if (workflowId && window.closeModal && window.switchView && window.showWorkflowDetails) {
+        window.closeModal();
+        window.switchView('workflows');
+        window.showWorkflowDetails(workflowId);
+      }
+    });
+    
+    modalBody.querySelectorAll('[data-action="show-agent-modal"]').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const agentId = link.dataset.agentId;
+        if (agentId && window.closeModal && window.switchView && window.showAgentDetails) {
+          window.closeModal();
+          window.switchView('agents');
+          window.showAgentDetails(agentId);
+        }
+      });
+    });
+    
     document.getElementById("modal").classList.add("active");
   } catch (error) {
     console.error("Failed to load execution details:", error);
+    window.showNotification(`Failed to load execution: ${error.message}`, "error");
   }
 }
 

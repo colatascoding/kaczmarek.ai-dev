@@ -468,19 +468,18 @@ const MAX_POLL_INTERVAL = 120000; // 2 minutes max
 const MAX_CONSECUTIVE_ERRORS = 5;
 
 function startPlanningAgentPolling(versionTag, _agentTaskId) {
-  // Stop existing polling for this version if any
-  if (planningAgentIntervals.has(versionTag)) {
-    clearTimeout(planningAgentIntervals.get(versionTag));
-  }
+  // Stop existing polling for this version if any (CRITICAL: must clear before starting new)
+  stopPlanningAgentPolling(versionTag);
   
   // Dynamic polling interval - starts at 15s, increases if rate limited
   let pollInterval = DEFAULT_POLL_INTERVAL;
   let consecutiveErrors = 0;
   let lastKnownStatus = null; // Track last known status to detect changes
+  let isPolling = true; // Flag to track if polling should continue
   
   const poll = async () => {
-    // Check if polling was stopped
-    if (!planningAgentIntervals.has(versionTag)) {
+    // Check if polling was stopped (multiple checks for safety)
+    if (!isPolling || !planningAgentIntervals.has(versionTag)) {
       return;
     }
     
@@ -597,8 +596,32 @@ function startPlanningAgentPolling(versionTag, _agentTaskId) {
 
 function stopPlanningAgentPolling(versionTag) {
   if (planningAgentIntervals.has(versionTag)) {
-    clearTimeout(planningAgentIntervals.get(versionTag));
+    const timeoutId = planningAgentIntervals.get(versionTag);
+    clearTimeout(timeoutId);
     planningAgentIntervals.delete(versionTag);
+  }
+}
+
+/**
+ * Cleanup all polling intervals (call on view change or page unload)
+ */
+function cleanupAllPolling() {
+  planningAgentIntervals.forEach((timeoutId, versionTag) => {
+    clearTimeout(timeoutId);
+  });
+  planningAgentIntervals.clear();
+}
+
+// Cleanup on page unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', cleanupAllPolling);
+  
+  // Also cleanup when view changes (if router is available)
+  if (window.addEventListener) {
+    window.addEventListener('viewchange', () => {
+      // Optionally cleanup, or keep polling if user navigates back
+      // For now, we'll keep polling active
+    });
   }
 }
 

@@ -27,22 +27,31 @@ function renderVersions(versions) {
     return;
   }
   
-  container.innerHTML = versions.map(v => `
+  container.innerHTML = versions.map(v => {
+    const tag = window.escapeHtml(v.tag || "");
+    const status = window.escapeHtml(v.status || "");
+    const statusClass = status.toLowerCase().replace(/\s+/g, "-");
+    const summary = v.summary ? window.escapeHtml(v.summary) : "";
+    const started = v.started ? window.escapeHtml(v.started) : "";
+    const completed = v.completed ? window.escapeHtml(v.completed) : "";
+    
+    return `
     <div class="list-item">
       <div class="list-item-header">
-        <div class="list-item-title">${v.tag}</div>
-        <span class="status-badge ${v.status.toLowerCase().replace(/\s+/g, "-")}">${v.status}</span>
+        <div class="list-item-title">${tag}</div>
+        <span class="status-badge ${statusClass}">${status}</span>
       </div>
-      ${v.summary ? `<div class="list-item-summary">${v.summary}</div>` : ""}
+      ${summary ? `<div class="list-item-summary">${summary}</div>` : ""}
       <div class="list-item-body">
         <p><strong>Review:</strong> ${v.hasReview ? "✓" : "✗"}</p>
         <p><strong>Progress:</strong> ${v.hasProgress ? "✓" : "✗"}</p>
-        ${v.started ? `<p><strong>Started:</strong> ${v.started}</p>` : ""}
-        ${v.completed ? `<p><strong>Completed:</strong> ${v.completed}</p>` : ""}
+        ${started ? `<p><strong>Started:</strong> ${started}</p>` : ""}
+        ${completed ? `<p><strong>Completed:</strong> ${completed}</p>` : ""}
         ${v.nextStepsCount > 0 ? `<p><strong>Tasks:</strong> ${v.completedStepsCount}/${v.nextStepsCount} completed</p>` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 /**
@@ -60,16 +69,23 @@ function renderVersionSummary(version, containerId) {
     ? Math.round((version.completedStepsCount / version.nextStepsCount) * 100)
     : 0;
   
+  const tag = window.escapeHtml(version.tag || "");
+  const status = window.escapeHtml(version.status || "");
+  const statusClass = status.toLowerCase().replace(/\s+/g, "-");
+  const summary = version.summary ? window.escapeHtml(version.summary) : "";
+  const started = version.started ? window.escapeHtml(version.started) : "";
+  const completed = version.completed ? window.escapeHtml(version.completed) : "";
+  
   container.innerHTML = `
     <div class="version-summary-card">
       <div class="version-summary-header">
-        <h4>${version.tag}</h4>
-        <span class="status-badge ${version.status.toLowerCase().replace(/\s+/g, "-")}">${version.status}</span>
+        <h4>${tag}</h4>
+        <span class="status-badge ${statusClass}">${status}</span>
       </div>
-      ${version.summary ? `<p class="version-summary-text">${version.summary}</p>` : ""}
+      ${summary ? `<p class="version-summary-text">${summary}</p>` : ""}
       <div class="version-summary-meta">
-        ${version.started ? `<span>Started: ${version.started}</span>` : ""}
-        ${version.completed ? `<span>Completed: ${version.completed}</span>` : ""}
+        ${started ? `<span>Started: ${started}</span>` : ""}
+        ${completed ? `<span>Completed: ${completed}</span>` : ""}
         ${version.nextStepsCount > 0 ? `
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progressPercent}%"></div>

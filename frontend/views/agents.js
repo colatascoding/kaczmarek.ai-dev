@@ -152,19 +152,24 @@ function renderAgents(agents, containerId) {
        </div>`;
   
   container.innerHTML = countDisplay + agents.map(agent => {
-    const agentId = agent.id || "";
-    const executionId = agent.execution?.executionId || agent.executionId || "";
+    const agentId = window.escapeHtml(agent.id || "");
+    const executionId = window.getExecutionId ? window.getExecutionId(agent) : (agent.execution?.executionId || agent.executionId || null);
+    const executionIdEscaped = executionId ? window.escapeHtml(executionId) : "";
     const createdAt = agent.createdAt || agent.startedAt || new Date().toISOString();
-    const agentName = agent.name || (agentId ? agentId.substring(0, 8) + "..." : "Unknown Agent");
+    const agentName = window.escapeHtml(agent.name || (agent.id ? agent.id.substring(0, 8) + "..." : "Unknown Agent"));
+    const agentStatus = window.escapeHtml(agent.status || "unknown");
+    const workflowId = agent.workflow?.id ? window.escapeHtml(agent.workflow.id) : "";
+    const workflowName = agent.workflow?.name ? window.escapeHtml(agent.workflow.name) : "";
+    const versionTag = agent.versionTag ? window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(agent.versionTag) : agent.versionTag) : "";
     
     return `
-    <div class="list-item" onclick="showAgentDetails('${agentId}')">
+    <div class="list-item" data-agent-id="${agentId}" data-action="show-details" style="cursor: pointer;">
       <div class="list-item-header">
         <div class="list-item-title">${agentName}</div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span class="status-badge ${agent.status || "unknown"}">${agent.status || "unknown"}</span>
+          <span class="status-badge ${agentStatus}">${agentStatus}</span>
           ${(agent.status === "ready" || agent.status === "partial") ? `
-            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); completeAgentTask('${agentId}');" title="Mark task as completed">
+            <button class="btn btn-primary btn-sm" data-action="complete-agent" data-agent-id="${agentId}" title="Mark task as completed">
               ✓ Complete
             </button>
           ` : ""}
@@ -172,26 +177,26 @@ function renderAgents(agents, containerId) {
       </div>
       <div class="list-item-body">
         <div style="display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.875rem;">
-          ${agent.workflow ? `
+          ${agent.workflow && workflowId ? `
             <div>
               <strong>Workflow:</strong> 
-              <a href="#" onclick="event.stopPropagation(); closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
-                ${agent.workflow.name}
+              <a href="#" data-action="show-workflow" data-workflow-id="${workflowId}" style="color: var(--primary); text-decoration: underline;">
+                ${workflowName}
               </a>
             </div>
           ` : ""}
-          ${executionId ? `
+          ${executionId && window.isValidId && window.isValidId(executionId) ? `
             <div>
               <strong>Execution:</strong> 
-              <a href="#" onclick="event.stopPropagation(); closeModal(); switchView('executions'); showExecutionDetails('${executionId}'); return false;" style="color: var(--primary); text-decoration: underline;">
-                ${executionId.substring(0, 8)}...
+              <a href="#" data-action="show-execution" data-execution-id="${executionIdEscaped}" style="color: var(--primary); text-decoration: underline;">
+                ${executionIdEscaped.substring(0, 8)}...
               </a>
             </div>
           ` : ""}
-          ${agent.versionTag ? `
+          ${versionTag ? `
             <div>
               <strong>Version:</strong> 
-              <span class="version-link">${agent.versionTag}</span>
+              <span class="version-link">${versionTag}</span>
             </div>
           ` : ""}
           <div><strong>Tasks:</strong> ${agent.tasks?.length || 0}</div>
@@ -201,6 +206,49 @@ function renderAgents(agents, containerId) {
     </div>
   `;
   }).join("");
+  
+  // Attach event listeners
+  container.querySelectorAll('[data-action="show-details"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button, a')) return; // Don't trigger if clicking button/link
+      const agentId = el.dataset.agentId;
+      if (agentId) showAgentDetails(agentId);
+    });
+  });
+  
+  container.querySelectorAll('[data-action="complete-agent"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const agentId = el.dataset.agentId;
+      if (agentId) completeAgentTask(agentId);
+    });
+  });
+  
+  container.querySelectorAll('[data-action="show-workflow"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const workflowId = el.dataset.workflowId;
+      if (workflowId && window.closeModal && window.switchView && window.showWorkflowDetails) {
+        window.closeModal();
+        window.switchView('workflows');
+        window.showWorkflowDetails(workflowId);
+      }
+      e.preventDefault();
+    });
+  });
+  
+  container.querySelectorAll('[data-action="show-execution"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const executionId = el.dataset.executionId;
+      if (executionId && window.closeModal && window.switchView && window.showExecutionDetails) {
+        window.closeModal();
+        window.switchView('executions');
+        window.showExecutionDetails(executionId);
+      }
+      e.preventDefault();
+    });
+  });
 }
 
 /**
@@ -211,45 +259,65 @@ async function showAgentDetails(agentId) {
     const data = await window.apiCall(`/api/agents/${agentId}`);
     const agent = data.agent;
     
+    if (!agent) {
+      window.showNotification("Agent not found", "error");
+      return;
+    }
+    
     const modalBody = document.getElementById("modal-body");
-    const agentName = agent.name || agent.id || "Unknown Agent";
+    const agentName = window.escapeHtml(agent.name || agent.id || "Unknown Agent");
+    const agentIdEscaped = window.escapeHtml(agent.id || "");
+    const agentStatus = window.escapeHtml(agent.status || "unknown");
+    const agentType = window.escapeHtml(agent.type || "unknown");
+    const executionId = window.getExecutionId ? window.getExecutionId(agent) : null;
+    const executionIdEscaped = executionId ? window.escapeHtml(executionId) : "";
+    const workflowId = agent.workflow?.id ? window.escapeHtml(agent.workflow.id) : "";
+    const workflowName = agent.workflow?.name ? window.escapeHtml(agent.workflow.name) : "";
+    const versionTag = (agent.versionTag || agent.workflow?.versionTag) 
+      ? window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(agent.versionTag || agent.workflow.versionTag) : (agent.versionTag || agent.workflow.versionTag))
+      : "";
+    const autoCompletedReason = agent.autoCompletedReason ? window.escapeHtml(agent.autoCompletedReason) : "No tasks to implement";
+    const prompt = agent.prompt ? window.escapeHtml(agent.prompt) : "N/A";
+    const tasksJson = JSON.stringify(agent.tasks || [], null, 2);
+    const executionResultsJson = agent.executionResults ? JSON.stringify(agent.executionResults, null, 2) : "";
+    
     modalBody.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0;">${agentName}</h2>
-        <button class="btn btn-secondary" onclick="copyAgentSummary('${agent.id}')" title="Copy agent summary to clipboard for debugging">
+        <button class="btn btn-secondary" data-action="copy-agent-summary" data-agent-id="${agentIdEscaped}" title="Copy agent summary to clipboard for debugging">
           📋 Copy Summary
         </button>
       </div>
       <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: 0.5rem;">
-        <div><strong>Status:</strong> <span class="status-badge ${agent.status}">${agent.status}</span></div>
-        <div><strong>Type:</strong> ${agent.type || "unknown"}</div>
+        <div><strong>Status:</strong> <span class="status-badge ${agentStatus}">${agentStatus}</span></div>
+        <div><strong>Type:</strong> ${agentType}</div>
         <div><strong>Tasks:</strong> ${agent.tasks?.length || 0}</div>
-        ${agent.workflow ? `
+        ${agent.workflow && workflowId ? `
           <div>
             <strong>Workflow:</strong> 
-            <a href="#" onclick="closeModal(); switchView('workflows'); showWorkflowDetails('${agent.workflow.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
-              ${agent.workflow.name}
+            <a href="#" data-action="show-workflow-modal" data-workflow-id="${workflowId}" style="color: var(--primary); text-decoration: underline;">
+              ${workflowName}
             </a>
           </div>
         ` : ""}
-        ${agent.execution ? `
+        ${executionId && window.isValidId && window.isValidId(executionId) ? `
           <div>
             <strong>Execution:</strong> 
-            <a href="#" onclick="closeModal(); switchView('executions'); showExecutionDetails('${agent.execution.executionId || agent.execution.id}'); return false;" style="color: var(--primary); text-decoration: underline;">
-              ${(agent.execution.executionId || agent.execution.id || "").substring(0, 8)}...
+            <a href="#" data-action="show-execution-modal" data-execution-id="${executionIdEscaped}" style="color: var(--primary); text-decoration: underline;">
+              ${executionIdEscaped.substring(0, 8)}...
             </a>
           </div>
         ` : ""}
-        ${agent.versionTag || agent.workflow?.versionTag ? `
+        ${versionTag ? `
           <div>
             <strong>Version:</strong> 
-            <span class="version-link">${agent.versionTag || agent.workflow.versionTag}</span>
+            <span class="version-link">${versionTag}</span>
           </div>
         ` : ""}
       </div>
       ${agent.autoCompleted ? `
         <div style="margin-bottom: 1rem; padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem;">
-          <strong>Auto-Completed:</strong> ${agent.autoCompletedReason || "No tasks to implement"}
+          <strong>Auto-Completed:</strong> ${autoCompletedReason}
           <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
             This agent task was automatically completed because there were no tasks to implement. This typically happens when all tasks in the review file are already completed.
           </p>
@@ -260,14 +328,14 @@ async function showAgentDetails(agentId) {
       ${agent.completedAt ? `<p><strong>Completed:</strong> ${window.formatDateForDisplay(agent.completedAt)}</p>` : ""}
       
       <h3 style="margin-top: 1.5rem;">Prompt</h3>
-      <pre><code>${agent.prompt || "N/A"}</code></pre>
+      <pre><code>${prompt}</code></pre>
       
       <h3 style="margin-top: 1.5rem;">Tasks (${agent.tasks?.length || 0})</h3>
-      <pre><code>${JSON.stringify(agent.tasks || [], null, 2)}</code></pre>
+      <pre><code>${tasksJson}</code></pre>
       
       ${agent.executionResults ? `
         <h3 style="margin-top: 1.5rem;">Execution Results</h3>
-        <pre><code>${JSON.stringify(agent.executionResults, null, 2)}</code></pre>
+        <pre><code>${executionResultsJson}</code></pre>
       ` : ""}
       
       ${agent.status === "ready" || agent.status === "partial" ? `
@@ -281,17 +349,48 @@ async function showAgentDetails(agentId) {
               <li>Mark related tasks as [x] in the review file</li>
             </ul>
           </p>
-          <button class="btn btn-primary" onclick="completeAgentTask('${agent.id}')">
+          <button class="btn btn-primary" data-action="complete-agent-modal" data-agent-id="${agentIdEscaped}">
             ✓ Mark as Completed
           </button>
         </div>
       ` : ""}
     `;
     
+    // Attach event listeners
+    modalBody.querySelector('[data-action="copy-agent-summary"]')?.addEventListener('click', () => {
+      copyAgentSummary(agent.id);
+    });
+    
+    modalBody.querySelector('[data-action="complete-agent-modal"]')?.addEventListener('click', () => {
+      completeAgentTask(agent.id);
+    });
+    
+    modalBody.querySelector('[data-action="show-workflow-modal"]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const workflowId = e.target.dataset.workflowId;
+      if (workflowId && window.closeModal && window.switchView && window.showWorkflowDetails) {
+        window.closeModal();
+        window.switchView('workflows');
+        window.showWorkflowDetails(workflowId);
+      }
+    });
+    
+    modalBody.querySelector('[data-action="show-execution-modal"]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const executionId = e.target.dataset.executionId;
+      if (executionId && window.closeModal && window.switchView && window.showExecutionDetails) {
+        window.closeModal();
+        window.switchView('executions');
+        window.showExecutionDetails(executionId);
+      }
+    });
+    
     document.getElementById("modal").classList.add("active");
   } catch (error) {
     console.error("Failed to load agent details:", error);
+    window.showNotification(`Failed to load agent: ${error.message}`, "error");
   }
+}
 }
 
 /**
@@ -443,6 +542,21 @@ async function completeAgentTask(agentId) {
       body: JSON.stringify({})
     });
     
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = typeof errorData.error === 'string' 
+            ? errorData.error 
+            : errorData.error.message || errorMessage;
+        }
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+    
     const result = await response.json();
     
     document.body.removeChild(loadingMsg);
@@ -452,12 +566,28 @@ async function completeAgentTask(agentId) {
       
       window.closeModal();
       
-      setTimeout(() => {
-        loadAgents();
-        if (window.currentView === "dashboard") {
-          window.loadDashboard();
+      // Refresh immediately, then verify
+      await loadAgents();
+      
+      // Verify agent status updated (with retries)
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const updated = await window.apiCall(`/api/agents/${agentId}`);
+          if (updated.agent?.status === 'completed') {
+            break;
+          }
+        } catch (e) {
+          // Ignore errors during verification
         }
-      }, 500);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        retries--;
+        await loadAgents();
+      }
+      
+      if (window.currentView === "dashboard") {
+        window.loadDashboard();
+      }
     } else {
       throw new Error(result.error || "Failed to complete task");
     }

@@ -148,32 +148,56 @@ function renderWorkflowList(workflows) {
       }
     }
     
+    const workflowId = window.escapeHtml(wf.id || "");
+    const workflowName = window.escapeHtml(wf.name || "");
+    const workflowDesc = wf.description ? window.escapeHtml(wf.description) : "";
+    const libraryItem = wf.libraryItem ? window.escapeHtml(wf.libraryItem) : "";
+    const versionTag = wf.versionTag 
+      ? window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(wf.versionTag) : wf.versionTag)
+      : "";
+    
     return `
-    <div class="list-item" onclick="showWorkflowDetails('${wf.id}')" style="cursor: pointer;">
+    <div class="list-item" data-workflow-id="${workflowId}" data-action="show-details" style="cursor: pointer;">
       <div class="list-item-header">
-        <div class="list-item-title">${wf.name}${categoryBadge}</div>
+        <div class="list-item-title">${workflowName}${categoryBadge}</div>
         <div class="list-item-meta">
           <span class="source-badge" style="background: var(--bg-secondary); color: var(--text); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-right: 0.5rem;">${sourceLabel}</span>
           <span class="automation-badge automation-${mode}">${modeLabel}</span>
-          ${wf.versionTag ? `<span class="version-link">${wf.versionTag}</span>` : ""}
+          ${versionTag ? `<span class="version-link">${versionTag}</span>` : ""}
           ${wf.executionCount > 0 ? `<span>${wf.executionCount} executions</span>` : ""}
-          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); runWorkflow('${wf.id}');" style="margin-left: 0.5rem;">
+          <button class="btn btn-primary btn-sm" data-action="run-workflow" data-workflow-id="${workflowId}" style="margin-left: 0.5rem;">
             ▶ Run
           </button>
         </div>
       </div>
-      ${wf.description ? `<div class="list-item-summary">${wf.description}</div>` : ""}
+      ${workflowDesc ? `<div class="list-item-summary">${workflowDesc}</div>` : ""}
       <div class="list-item-body">
-        <p><strong>ID:</strong> ${wf.id}</p>
+        <p><strong>ID:</strong> ${workflowId}</p>
         <p><strong>Source:</strong> ${sourceLabel}</p>
-        ${wf.libraryItem ? `<p><strong>Library:</strong> ${wf.libraryItem}</p>` : ""}
+        ${libraryItem ? `<p><strong>Library:</strong> ${libraryItem}</p>` : ""}
         <p><strong>Mode:</strong> ${modeLabel}</p>
-        ${wf.versionTag ? `<p><strong>Version:</strong> <span class="version-link">${wf.versionTag}</span></p>` : ""}
+        ${versionTag ? `<p><strong>Version:</strong> <span class="version-link">${versionTag}</span></p>` : ""}
         ${wf.executionCount > 0 ? `<p><strong>Executions:</strong> ${wf.executionCount}</p>` : ""}
       </div>
     </div>
   `;
   }).join("");
+  
+  // Attach event listeners
+  container.querySelectorAll('[data-action="show-details"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const workflowId = el.dataset.workflowId;
+      if (workflowId) showWorkflowDetails(workflowId);
+    });
+  });
+  
+  container.querySelectorAll('[data-action="run-workflow"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const workflowId = el.dataset.workflowId;
+      if (workflowId) runWorkflow(workflowId);
+    });
+  });
 }
 
 /**
@@ -215,7 +239,7 @@ async function showWorkflowDetails(workflowId) {
         </div>
       </div>
       <p><strong>Version:</strong> ${wf.version || "N/A"}</p>
-      ${data.versionTag ? `<p><strong>Version Tag:</strong> <span class="version-link">${data.versionTag}</span></p>` : ""}
+      ${data.versionTag ? `<p><strong>Version Tag:</strong> <span class="version-link">${window.escapeHtml(window.normalizeVersionTag ? window.normalizeVersionTag(data.versionTag) : data.versionTag)}</span></p>` : ""}
       <p><strong>Description:</strong> ${wf.description || "N/A"}</p>
       
       ${data.relatedFiles && data.relatedFiles.length > 0 ? `
