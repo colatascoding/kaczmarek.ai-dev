@@ -33,4 +33,17 @@ If you encounter permission errors during `npm install`, you may need to:
 2. Try running: `sudo npm install` (if on macOS/Linux)
 3. Or reinstall node_modules: `rm -rf node_modules && npm install`
 
+## Manual Testing
+
+For progressive manual testing of features, see:
+- **`MANUAL_TESTING_SUITE.md`** - Comprehensive testing guide with detailed instructions
+- **`MANUAL_TESTING_CHECKLIST.md`** - Quick reference checklist
+
+The manual testing suite follows a progressive approach:
+1. Start with minimal features (CLI basics)
+2. Add complexity as each stage passes
+3. Only proceed to next stage when current stage is fully passed
+
+This helps identify issues early and ensures core functionality works before testing advanced features.
+
 
