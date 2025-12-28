@@ -211,7 +211,11 @@ async function savePlanStage(versionTag) {
  */
 function addPlanGoal() {
   const container = document.getElementById("plan-goals-list");
-  if (!container) return;
+  if (!container) {
+    console.warn("plan-goals-list element not found. This feature may not be fully implemented yet.");
+    window.showNotification("Plan goals feature is not available in this context", "info");
+    return;
+  }
   
   const goalDiv = document.createElement("div");
   goalDiv.style.cssText = "display: flex; gap: 0.5rem; margin-bottom: 0.5rem;";

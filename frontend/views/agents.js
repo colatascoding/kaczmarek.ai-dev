@@ -391,7 +391,6 @@ async function showAgentDetails(agentId) {
     window.showNotification(`Failed to load agent: ${error.message}`, "error");
   }
 }
-}
 
 /**
  * Copy agent summary to clipboard

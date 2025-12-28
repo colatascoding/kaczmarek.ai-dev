@@ -64,8 +64,12 @@ async function loadExecutionsV2() {
  * Render executions list
  */
 function renderExecutionsV2(executions, agents) {
+  // Container is created dynamically in loadExecutionsV2()
   const container = document.getElementById("executions-list-v2");
-  if (!container) return;
+  if (!container) {
+    console.warn("executions-list-v2 element not found. It should be created by loadExecutionsV2() first.");
+    return;
+  }
 
   // Group agents by executionId (optimized)
   const agentsByExecution = window.groupBy 

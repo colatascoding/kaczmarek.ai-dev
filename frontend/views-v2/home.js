@@ -139,6 +139,9 @@ async function loadHome() {
   } catch (error) {
     console.error("Failed to load recent activity:", error);
   }
+  
+  // Attach event listeners after loading
+  attachHomeEventListeners();
 }
 
 /**
@@ -174,6 +177,54 @@ function attachHomeEventListeners() {
       const executionId = element.dataset.executionId;
       if (executionId) {
         showExecutionDetails(executionId);
+      }
+    });
+  });
+  
+  // Make stage items clickable - navigate to version detail and show that stage
+  document.querySelectorAll(".stage-item[data-stage]").forEach(item => {
+    // Remove existing listeners to avoid duplicates
+    const newItem = item.cloneNode(true);
+    item.parentNode?.replaceChild(newItem, item);
+    const freshItem = item.parentNode?.querySelector(`.stage-item[data-stage="${item.dataset.stage}"]`) || newItem;
+    
+    freshItem.style.cursor = "pointer";
+    freshItem.title = `Click to view ${item.dataset.stage} stage`;
+    freshItem.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const stage = freshItem.dataset.stage;
+      if (!stage) return;
+      
+      // Get current version
+      const versionTag = window.currentVersion || 
+        document.getElementById("current-version-title")?.textContent?.replace("Version ", "") ||
+        document.getElementById("version-detail-title")?.textContent?.replace("Version ", "");
+      
+      if (!versionTag) {
+        window.showNotification("No version selected", "error");
+        return;
+      }
+      
+      // Navigate to version detail view
+      if (window.showVersionDetail) {
+        window.showVersionDetail(versionTag);
+        
+        // After a short delay, show the clicked stage
+        setTimeout(() => {
+          if (window.showStage) {
+            window.showStage(stage);
+          }
+        }, 300);
+      } else {
+        // Fallback: try to switch view and show stage
+        if (window.switchView) {
+          window.switchView("version-detail");
+          setTimeout(() => {
+            if (window.showStage) {
+              window.showStage(stage);
+            }
+          }, 300);
+        }
       }
     });
   });
