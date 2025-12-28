@@ -33,14 +33,37 @@ async function mergePlanningAgentBranch(versionTag, branch) {
     });
     
     if (result.success) {
-      win.showNotification(`Successfully merged branch: ${branch}`, "success");
+      // Check if branch was already merged (not actually merged just now)
+      if (result.alreadyMerged || (result.result && result.result.alreadyMerged)) {
+        win.showNotification(`Branch ${branch} was already merged into the current branch`, "info");
+      } else if (result.actuallyMerged || (result.result && result.result.merged)) {
+        // Check push status
+        const pushed = result.result && result.result.pushed;
+        const pushError = result.result && result.result.pushError;
+        
+        if (pushed) {
+          win.showNotification(`Successfully merged and pushed branch: ${branch}`, "success");
+        } else if (pushError) {
+          win.showNotification(`Merged ${branch} locally, but push failed: ${pushError}`, "warning");
+        } else {
+          win.showNotification(`Successfully merged branch: ${branch}`, "success");
+        }
+      } else {
+        // Success but unclear if merged - show the message from result
+        win.showNotification(result.message || `Branch operation completed: ${branch}`, "info");
+      }
       // Refresh the plan stage to show updated status
       const stageContent = document.getElementById("stage-content");
       if (stageContent) {
         await renderPlanStage(versionTag, stageContent);
       }
     } else {
-      win.showNotification(`Failed to merge: ${result.error || "Unknown error"}`, "error");
+      // Check for merge conflicts
+      if (result.result && result.result.conflict) {
+        win.showNotification(`Merge conflict detected for ${branch}. Please resolve manually.`, "error");
+      } else {
+        win.showNotification(`Failed to merge: ${result.error || result.message || "Unknown error"}`, "error");
+      }
     }
   } catch (error) {
     console.error("Failed to merge branch:", error);
