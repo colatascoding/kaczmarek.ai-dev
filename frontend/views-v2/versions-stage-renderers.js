@@ -6,6 +6,39 @@
 window.renderPlanStage = renderPlanStage;
 
 /**
+ * Manually trigger merge for planning agent branch
+ */
+async function mergePlanningAgentBranch(versionTag, branch) {
+  try {
+    window.showNotification("Merging agent branch...", "info");
+    
+    const result = await window.apiCall(`/api/versions/${versionTag}/planning-agent-merge`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (result.success) {
+      window.showNotification(`Successfully merged branch: ${branch}`, "success");
+      // Refresh the plan stage to show updated status
+      const stageContent = document.getElementById("stage-content");
+      if (stageContent) {
+        await renderPlanStage(versionTag, stageContent);
+      }
+    } else {
+      window.showNotification(`Failed to merge: ${result.error || "Unknown error"}`, "error");
+    }
+  } catch (error) {
+    console.error("Failed to merge branch:", error);
+    window.showNotification(`Failed to merge branch: ${error.message}`, "error");
+  }
+}
+
+// Expose globally
+window.mergePlanningAgentBranch = mergePlanningAgentBranch;
+
+/**
  * Render plan stage
  */
 async function renderPlanStage(versionTag, container) {
@@ -150,14 +183,37 @@ async function renderPlanStage(versionTag, container) {
               <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">
                 Planning agent has completed. Goals have been generated.
               </p>
-              ${agentStatus.autoMerge === true ? `
+              ${agentStatus.agentBranch ? `
+                <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                      <span style="font-size: 1.2rem;">🔄</span>
+                      <div>
+                        <strong style="font-size: 0.875rem; color: var(--primary);">
+                          ${agentStatus.autoMerge === true ? "Auto-merge enabled" : "Agent branch ready"}
+                        </strong>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
+                          Branch: <code style="font-size: 0.7rem; background: var(--bg); padding: 0.125rem 0.25rem; border-radius: 2px;">${agentStatus.agentBranch}</code>
+                          ${agentStatus.autoMerge === true ? " (will merge automatically)" : " (ready to merge)"}
+                        </p>
+                      </div>
+                    </div>
+                    <button onclick="mergePlanningAgentBranch('${versionTag}', '${agentStatus.agentBranch}')" 
+                            style="padding: 0.5rem 1rem; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                            onmouseover="this.style.background='var(--primary-dark)'"
+                            onmouseout="this.style.background='var(--primary)'">
+                      Merge Branch
+                    </button>
+                  </div>
+                </div>
+              ` : agentStatus.autoMerge === true ? `
                 <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 1.2rem;">🔄</span>
                     <div>
                       <strong style="font-size: 0.875rem; color: var(--primary);">Auto-merge enabled</strong>
                       <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-light);">
-                        The agent's branch will be automatically merged when planning completes.
+                        Waiting for agent branch to be created...
                       </p>
                     </div>
                   </div>
