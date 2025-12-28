@@ -13,15 +13,40 @@ function getWindow() {
   return null;
 }
 
+// Track launching agents to prevent double-clicks
+const launchingAgents = new Set();
+
 /**
  * Launch agent for a workstream
  */
-async function launchWorkstreamAgent(versionTag, workstreamId) {
+async function launchWorkstreamAgent(versionTag, workstreamId, event) {
+  // Prevent double-clicks
+  const launchKey = `${versionTag}-${workstreamId}`;
+  if (launchingAgents.has(launchKey)) {
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification("Agent launch already in progress...", "info");
+    }
+    return;
+  }
+  
+  launchingAgents.add(launchKey);
+  
+  // Get button reference
+  const button = event?.target || document.getElementById(`launch-agent-${workstreamId.replace(/[^a-zA-Z0-9]/g, '-')}`) || 
+                 document.querySelector(`button[onclick*="launchWorkstreamAgent('${versionTag}', '${workstreamId}')"]`);
+  
   try {
     const win = getWindow();
     if (!win || !win.showNotification) {
       console.error("window.showNotification is not available");
       return;
+    }
+    
+    // Disable button immediately
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Launching...";
     }
     
     win.showNotification(`Launching agent for workstream: ${workstreamId}...`, "info");
@@ -52,6 +77,11 @@ async function launchWorkstreamAgent(versionTag, workstreamId) {
       }
     } else {
       win.showNotification(`Failed to launch agent: ${result.error || "Unknown error"}`, "error");
+      // Re-enable button on error
+      if (button) {
+        button.disabled = false;
+        button.textContent = "🚀 Launch Agent";
+      }
     }
   } catch (error) {
     const win = getWindow();
@@ -59,6 +89,17 @@ async function launchWorkstreamAgent(versionTag, workstreamId) {
       win.showNotification(`Error launching agent: ${error.message}`, "error");
     }
     console.error("Failed to launch workstream agent:", error);
+    
+    // Re-enable button on error
+    if (button) {
+      button.disabled = false;
+      button.textContent = "🚀 Launch Agent";
+    }
+  } finally {
+    // Remove from launching set after a delay to allow UI to update
+    setTimeout(() => {
+      launchingAgents.delete(launchKey);
+    }, 2000);
   }
 }
 
@@ -593,11 +634,12 @@ async function renderImplementStage(versionTag, container) {
                     ` : ""}
                     <button 
                       class="btn btn-sm" 
-                      onclick="launchWorkstreamAgent('${versionTag.replace(/'/g, "\\'")}', '${ws.id.replace(/'/g, "\\'")}')" 
+                      onclick="launchWorkstreamAgent('${versionTag.replace(/'/g, "\\'")}', '${ws.id.replace(/'/g, "\\'")}', event); event.stopPropagation();" 
                       style="width: 100%; margin-top: 0.5rem; ${ws.metadata?.agentId ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
                       ${ws.metadata?.agentId ? 'disabled' : ''}
+                      id="launch-agent-${ws.id.replace(/[^a-zA-Z0-9]/g, '-')}"
                     >
-                      ${ws.metadata?.agentId ? "Agent Running" : "🚀 Launch Agent"}
+                      ${ws.metadata?.agentId ? `Agent Running (${ws.metadata.agentId.substring(0, 8)}...)` : "🚀 Launch Agent"}
                     </button>
                   </li>
                 `).join("")}
