@@ -189,11 +189,35 @@ function renderVersionWizardStep2(container, nextBtn) {
                   id="wizard-high-level-goal"
                   placeholder="e.g., Add visual workflow editor with drag-and-drop interface"
                   style="width: 100%; min-height: 80px; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-family: inherit; font-size: 0.875rem; resize: vertical;"
-                  onchange="versionWizardData.highLevelGoal = this.value"
-                  oninput="versionWizardData.highLevelGoal = this.value"
+                  onchange="versionWizardData.highLevelGoal = this.value; updateWorkstreamInfo();"
+                  oninput="versionWizardData.highLevelGoal = this.value; updateWorkstreamInfo();"
                 >${versionWizardData.highLevelGoal || ""}</textarea>
                 <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
-                  Describe the main feature or goal for this version. The AI will generate related goals organized into workstreams A, B, and C.
+                  Describe the main feature or goal for this version. The AI will generate related goals organized into workstreams.
+                </div>
+                <div style="margin-top: 0.75rem;">
+                  <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem;">
+                    Number of Workstreams <span style="color: var(--text-light); font-weight: normal;">(default: 3)</span>
+                  </label>
+                  <input 
+                    type="number" 
+                    id="wizard-workstream-count"
+                    min="1" 
+                    max="10" 
+                    value="${versionWizardData.workstreamCount || 3}"
+                    style="width: 100px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.875rem;"
+                    onchange="versionWizardData.workstreamCount = parseInt(this.value) || 3; updateWorkstreamInfo();"
+                    oninput="versionWizardData.workstreamCount = parseInt(this.value) || 3; updateWorkstreamInfo();"
+                  >
+                  <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                    Specify how many parallel workstreams the AI should create. Each workstream will contain 1-3 related goals.
+                  </div>
+                </div>
+                <div id="workstream-info" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light, #e3f2fd); border-left: 3px solid var(--primary); border-radius: var(--radius); font-size: 0.875rem;">
+                  <strong>📦 Workstreams to be created:</strong> <span id="workstream-count">${versionWizardData.workstreamCount || 3}</span>
+                  <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                    The AI will break down your goal into <span id="workstream-count-text">${versionWizardData.workstreamCount || 3}</span> parallel workstreams, each with 1-3 related goals.
+                  </div>
                 </div>
               </div>
               <div style="margin-bottom: 0.75rem;">
@@ -331,6 +355,9 @@ function renderVersionWizardStep3(container, nextBtn) {
         <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
           <strong>Planning Method:</strong> AI Agent will generate plan from high-level goal
         </div>
+        <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light, #e3f2fd); border-left: 3px solid var(--primary); border-radius: var(--radius);">
+          <strong>📦 Workstreams:</strong> ${versionWizardData.workstreamCount || 3} workstream${(versionWizardData.workstreamCount || 3) !== 1 ? 's' : ''} will be automatically created from the generated goals
+        </div>
       ` : ""}
     </div>
   `;
@@ -357,6 +384,31 @@ function removeWizardGoal(index) {
   if (versionWizardData.goals) {
     versionWizardData.goals.splice(index, 1);
     renderVersionWizardStep();
+  }
+}
+
+/**
+ * Update workstream info display
+ */
+function updateWorkstreamInfo() {
+  const infoDiv = document.getElementById("workstream-info");
+  const countSpan = document.getElementById("workstream-count");
+  const countTextSpan = document.getElementById("workstream-count-text");
+  const input = document.getElementById("wizard-workstream-count");
+  
+  if (input) {
+    const count = parseInt(input.value) || 3;
+    versionWizardData.workstreamCount = count;
+    
+    if (countSpan) {
+      countSpan.textContent = count;
+    }
+    if (countTextSpan) {
+      countTextSpan.textContent = count;
+    }
+    if (infoDiv) {
+      infoDiv.style.display = "block";
+    }
   }
 }
 
