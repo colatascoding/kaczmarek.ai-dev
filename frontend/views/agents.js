@@ -63,19 +63,26 @@ function filterAndSortAgents() {
     return;
   }
   
-  let filtered = [...allAgents];
-  
-  // Apply status filter
+  // Get filter values once
   const statusFilter = document.getElementById("agent-status-filter")?.value || "all";
-  if (statusFilter !== "all") {
-    filtered = filtered.filter(agent => agent.status === statusFilter);
-  }
-  
-  // Apply workflow filter
   const workflowFilter = document.getElementById("agent-workflow-filter")?.value || "all";
-  if (workflowFilter !== "all") {
-    filtered = filtered.filter(agent => agent.workflow && agent.workflow.id === workflowFilter);
-  }
+  
+  // Apply all filters in a single pass for better performance
+  let filtered = allAgents.filter(agent => {
+    // Status filter
+    if (statusFilter !== "all" && agent.status !== statusFilter) {
+      return false;
+    }
+    
+    // Workflow filter
+    if (workflowFilter !== "all") {
+      if (!agent.workflow || agent.workflow.id !== workflowFilter) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
   
   // Apply sorting
   const sortBy = document.getElementById("agent-sort")?.value || "newest";
@@ -424,7 +431,7 @@ async function copyAgentSummary(agentId) {
     summary += `- **Tasks Count:** ${agent.tasks?.length || 0}\n`;
     
     if (agent.workflow) {
-      summary += `- **Workflow:** ${agent.workflow.name} (${agent.workflow.id})\n`;
+      summary += `- **Workflow:** ${agent.workflow?.name || "Unknown"} (${agent.workflow?.id || "N/A"})\n`;
     }
     if (agent.execution) {
       summary += `- **Execution:** ${agent.execution.executionId || agent.execution.id || "N/A"}\n`;
