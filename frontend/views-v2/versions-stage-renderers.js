@@ -15,6 +15,7 @@ function getWindow() {
 
 // Track launching agents to prevent double-clicks
 const launchingAgents = new Set();
+const MAX_LAUNCHING_AGENTS = 20; // Limit set size to prevent memory leaks
 
 /**
  * Launch agent for a workstream
@@ -28,6 +29,13 @@ async function launchWorkstreamAgent(versionTag, workstreamId, event) {
       win.showNotification("Agent launch already in progress...", "info");
     }
     return;
+  }
+  
+  // Clean up old entries if set gets too large
+  if (launchingAgents.size >= MAX_LAUNCHING_AGENTS) {
+    // Remove first 5 entries
+    const keysToRemove = Array.from(launchingAgents).slice(0, 5);
+    keysToRemove.forEach(key => launchingAgents.delete(key));
   }
   
   launchingAgents.add(launchKey);
@@ -559,6 +567,7 @@ async function renderPlanStage(versionTag, container) {
  */
 // Track active render calls to prevent concurrent requests
 const activeRenderCalls = new Map();
+const MAX_RENDER_CALLS = 50; // Limit map size to prevent memory leaks
 
 async function renderImplementStage(versionTag, container) {
   // Prevent concurrent calls for the same version
@@ -566,6 +575,13 @@ async function renderImplementStage(versionTag, container) {
   if (activeRenderCalls.has(renderKey)) {
     console.warn(`[Implement Stage] Render already in progress for ${versionTag}, skipping duplicate call`);
     return;
+  }
+  
+  // Clean up old entries if map gets too large
+  if (activeRenderCalls.size >= MAX_RENDER_CALLS) {
+    // Remove oldest entries (first 10)
+    const keysToRemove = Array.from(activeRenderCalls.keys()).slice(0, 10);
+    keysToRemove.forEach(key => activeRenderCalls.delete(key));
   }
   
   // Mark as active
@@ -582,6 +598,10 @@ async function renderImplementStage(versionTag, container) {
     const progressEntries = details.progressEntries || 0;
     const recentActivity = details.recentActivity || [];
     const progress = summary.progress || 0;
+    
+    // Preserve scroll position before update
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
     
     container.innerHTML = `
       <div class="stage-content">
@@ -679,6 +699,16 @@ async function renderImplementStage(versionTag, container) {
         </div>
       </div>
     `;
+    
+    // Restore scroll position after DOM update
+    requestAnimationFrame(() => {
+      if (container.scrollTop !== scrollTop) {
+        container.scrollTop = scrollTop;
+      }
+      if (container.scrollLeft !== scrollLeft) {
+        container.scrollLeft = scrollLeft;
+      }
+    });
   } catch (error) {
     console.error("Failed to render implement stage:", error);
     
