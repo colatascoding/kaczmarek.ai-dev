@@ -1,0 +1,10 @@
+{
+  "id": "Visual Workflow Editor & Templates",
+  "name": "Visual Workflow Editor & Templates",
+  "sanitizedName": "Visual Workflow Editor & Templates",
+  "description": "Goals for Workstream A:\n- **Goal A1** - Implement drag-and-drop visual workflow editor with React Flow integration\n- **Goal A2** - Build comprehensive workflow template library and discovery system\n- **Goal A3** - Develop workflow composition and reusability features",
+  "versionTag": "0-15",
+  "status": "active",
+  "created": "2025-12-29",
+  "tasks": []
+}

@@ -181,6 +181,21 @@ function renderVersionWizardStep2(container, nextBtn) {
           </div>
           ${useAI ? `
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem;">
+                  High-Level Goal <span style="color: var(--text-light); font-weight: normal;">(required)</span>
+                </label>
+                <textarea 
+                  id="wizard-high-level-goal"
+                  placeholder="e.g., Add visual workflow editor with drag-and-drop interface"
+                  style="width: 100%; min-height: 80px; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-family: inherit; font-size: 0.875rem; resize: vertical;"
+                  onchange="versionWizardData.highLevelGoal = this.value"
+                  oninput="versionWizardData.highLevelGoal = this.value"
+                >${versionWizardData.highLevelGoal || ""}</textarea>
+                <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                  Describe the main feature or goal for this version. The AI will generate related goals organized into workstreams A, B, and C.
+                </div>
+              </div>
               <div style="margin-bottom: 0.75rem;">
                 <label style="display: flex; align-items: start; gap: 0.5rem; cursor: pointer; font-size: 0.875rem;">
                   <input type="checkbox" ${versionWizardData.commitBeforeAgent !== false ? "checked" : ""} 
@@ -261,6 +276,19 @@ function renderVersionWizardStep2(container, nextBtn) {
   
   nextBtn.textContent = "Next: Review →";
   nextBtn.onclick = () => {
+    // Validate high-level goal if using AI
+    if (versionWizardData.useAI !== false) {
+      const goalInput = document.getElementById("wizard-high-level-goal");
+      const highLevelGoal = goalInput ? goalInput.value.trim() : (versionWizardData.highLevelGoal || "").trim();
+      
+      if (!highLevelGoal) {
+        window.showNotification("Please provide a high-level goal for the AI to generate the plan", "error");
+        return;
+      }
+      
+      versionWizardData.highLevelGoal = highLevelGoal;
+    }
+    
     versionWizardStep = 2;
     renderVersionWizardStep();
   };
@@ -285,12 +313,25 @@ function renderVersionWizardStep3(container, nextBtn) {
       <div style="margin-bottom: 0.75rem;">
         <strong>Type:</strong> ${versionWizardData.type || "minor"}
       </div>
-      <div>
-        <strong>Goals (${(versionWizardData.goals || []).length}):</strong>
-        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-          ${(versionWizardData.goals || []).map(goal => `<li>${goal}</li>`).join("")}
-        </ul>
-      </div>
+      ${versionWizardData.useAI !== false && versionWizardData.highLevelGoal ? `
+        <div style="margin-bottom: 0.75rem;">
+          <strong>High-Level Goal:</strong>
+          <p style="margin: 0.5rem 0 0 0; color: var(--text-light);">${versionWizardData.highLevelGoal}</p>
+        </div>
+      ` : ""}
+      ${(versionWizardData.goals || []).length > 0 ? `
+        <div>
+          <strong>Goals (${(versionWizardData.goals || []).length}):</strong>
+          <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            ${(versionWizardData.goals || []).map(goal => `<li>${goal}</li>`).join("")}
+          </ul>
+        </div>
+      ` : ""}
+      ${versionWizardData.useAI !== false ? `
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+          <strong>Planning Method:</strong> AI Agent will generate plan from high-level goal
+        </div>
+      ` : ""}
     </div>
   `;
   
