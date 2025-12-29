@@ -1,7 +1,7 @@
 {
   "version": "0-14",
   "type": "minor",
-  "status": "in-progress",
+  "status": "rejected",
   "started": "2025-12-28",
   "description": "Testing infrastructure, frontend polish, and workflow editor foundation",
   "goals": [
@@ -19,14 +19,15 @@
       "completedAt": "2025-12-28T22:30:00.000Z"
     },
     "2implement": {
-      "status": "pending",
+      "status": "rejected",
       "startedAt": null
     },
     "3test": {
-      "status": "pending"
+      "status": "rejected"
     },
     "4review": {
-      "status": "pending"
+      "status": "rejected"
     }
-  }
+  },
+  "rejected": "2025-12-29"
 }
