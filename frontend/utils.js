@@ -165,17 +165,78 @@ if (typeof window !== "undefined" && window.document) {
 /**
  * API Helper
  */
+// Track active API calls to prevent duplicate requests
+const activeApiCalls = new Map();
+const MAX_ACTIVE_CALLS = 100; // Limit map size to prevent memory leaks
+
+// Simple response cache (in-memory, short TTL)
+const responseCache = new Map();
+const CACHE_TTL = 5000; // 5 seconds
+const MAX_CACHE_SIZE = 50;
+
+function getCacheKey(endpoint, options = {}) {
+  // Only cache GET requests
+  if (options.method && options.method !== 'GET') return null;
+  return `GET-${endpoint}`;
+}
+
+function getCachedResponse(cacheKey) {
+  const cached = responseCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  if (cached) {
+    responseCache.delete(cacheKey);
+  }
+  return null;
+}
+
+function setCachedResponse(cacheKey, data) {
+  // Limit cache size
+  if (responseCache.size >= MAX_CACHE_SIZE) {
+    // Remove oldest entries (first 10)
+    const keysToRemove = Array.from(responseCache.keys()).slice(0, 10);
+    keysToRemove.forEach(key => responseCache.delete(key));
+  }
+  responseCache.set(cacheKey, { data, timestamp: Date.now() });
+}
+
 async function apiCall(endpoint, options = {}) {
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers
-      }
-    });
-    
-    if (!response.ok) {
+  // Check cache for GET requests
+  const cacheKey = getCacheKey(endpoint, options);
+  if (cacheKey) {
+    const cached = getCachedResponse(cacheKey);
+    if (cached !== null) {
+      return Promise.resolve(cached);
+    }
+  }
+  
+  // Prevent duplicate concurrent requests for the same endpoint
+  const callKey = `${options.method || 'GET'}-${endpoint}`;
+  if (activeApiCalls.has(callKey)) {
+    // Return the existing promise instead of making a new request
+    return activeApiCalls.get(callKey);
+  }
+  
+  // Clean up old entries if map gets too large
+  if (activeApiCalls.size >= MAX_ACTIVE_CALLS) {
+    // Remove oldest entries (first 20)
+    const keysToRemove = Array.from(activeApiCalls.keys()).slice(0, 20);
+    keysToRemove.forEach(key => activeApiCalls.delete(key));
+  }
+  
+  // Create the API call promise
+  const apiPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers
+        }
+      });
+      
+      if (!response.ok) {
       // Try to get error details from response
       let errorMessage = `API error: ${response.status} ${response.statusText}`;
       try {
@@ -194,16 +255,59 @@ async function apiCall(endpoint, options = {}) {
       throw error;
     }
     
-    return await response.json();
-  } catch (error) {
-    // Handle network errors
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      const networkError = new Error('Network error: Unable to connect to server. Please check your connection.');
-      networkError.type = 'network';
-      throw networkError;
+      const jsonData = await response.json();
+      
+      // Cache successful GET responses
+      if (cacheKey && response.ok) {
+        setCachedResponse(cacheKey, jsonData);
+      }
+      
+      return jsonData;
+    } catch (error) {
+      // Handle network errors
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        const networkError = new Error('Network error: Unable to connect to server. Please check your connection.');
+        networkError.type = 'network';
+        throw networkError;
+      }
+      
+      // Handle JSON parse errors
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        const jsonError = new Error('Invalid JSON response from server');
+        jsonError.type = 'json';
+        jsonError.originalError = error;
+        throw jsonError;
+      }
+      
+      console.error("API call failed:", error);
+      throw error;
+    } finally {
+      // Always remove from active calls after completion
+      activeApiCalls.delete(callKey);
     }
-    console.error("API call failed:", error);
-    throw error;
+  })();
+  
+  // Store the promise
+  activeApiCalls.set(callKey, apiPromise);
+  
+  // Return the promise
+  return apiPromise;
+}
+
+/**
+ * Clear API response cache
+ */
+function clearApiCache() {
+  responseCache.clear();
+}
+
+/**
+ * Clear specific cache entry
+ */
+function clearApiCacheEntry(endpoint) {
+  const cacheKey = getCacheKey(endpoint);
+  if (cacheKey) {
+    responseCache.delete(cacheKey);
   }
 }
 
@@ -211,6 +315,8 @@ async function apiCall(endpoint, options = {}) {
 window.showNotification = showNotification;
 window.getNotificationLog = getNotificationLog;
 window.clearNotificationLog = clearNotificationLog;
+window.clearApiCache = clearApiCache;
+window.clearApiCacheEntry = clearApiCacheEntry;
 
 // Export for module use
 if (typeof module !== "undefined" && module.exports) {

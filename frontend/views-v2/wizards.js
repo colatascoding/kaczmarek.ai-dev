@@ -446,17 +446,34 @@ function closeWorkstreamWizard() {
  */
 async function createWorkstream() {
   try {
-    const name = document.getElementById("workstream-name")?.value;
-    const description = document.getElementById("workstream-description")?.value;
-    const versionTag = document.getElementById("workstream-version")?.value || window.currentVersionTag;
+    const name = document.getElementById("workstream-name")?.value?.trim();
+    const description = document.getElementById("workstream-description")?.value?.trim() || "";
+    const versionTag = document.getElementById("workstream-version")?.value?.trim() || window.currentVersionTag;
     
     if (!name) {
       window.showNotification("Workstream name is required", "error");
       return;
     }
+
+    if (name.length > 100) {
+      window.showNotification("Workstream name must be 100 characters or less", "error");
+      return;
+    }
+
+    // Check for invalid characters
+    if (/[/\\:*?"<>|]/.test(name)) {
+      window.showNotification("Workstream name contains invalid characters (/, \\, :, *, ?, \", <, >, |). These will be replaced with hyphens.", "warning");
+      // Continue - backend will sanitize
+    }
     
     if (!versionTag) {
       window.showNotification("Version tag is required", "error");
+      return;
+    }
+
+    // Validate version tag format
+    if (!/^\d+-\d+$/.test(versionTag)) {
+      window.showNotification("Invalid version tag format. Expected format: major-minor (e.g., 0-14)", "error");
       return;
     }
     
@@ -472,16 +489,32 @@ async function createWorkstream() {
       }
     });
     
-    window.showNotification("Workstream created successfully", "success");
-    closeWorkstreamWizard();
-    
-    // Refresh workstreams
-    if (window.loadWorkstreams && versionTag) {
-      await window.loadWorkstreams(versionTag);
+    if (data.success) {
+      window.showNotification("Workstream created successfully", "success");
+      closeWorkstreamWizard();
+      
+      // Refresh workstreams in all views
+      if (window.loadWorkstreams && versionTag) {
+        await window.loadWorkstreams(versionTag);
+      }
+      
+      // Refresh implement stage if it's currently displayed
+      if (window.renderVersionStage) {
+        const currentHash = window.location?.hash || "";
+        const match = currentHash.match(/versions\/([^/]+)\/([^/]+)/);
+        if (match && match[2] === "implement") {
+          setTimeout(() => {
+            window.renderVersionStage(match[1], match[2]);
+          }, 500);
+        }
+      }
+    } else {
+      window.showNotification(`Failed to create workstream: ${data.error || "Unknown error"}`, "error");
     }
   } catch (error) {
     console.error("Failed to create workstream:", error);
-    window.showNotification(`Failed to create workstream: ${error.message}`, "error");
+    const errorMessage = error.message || "Unknown error occurred";
+    window.showNotification(`Failed to create workstream: ${errorMessage}`, "error");
   }
 }
 

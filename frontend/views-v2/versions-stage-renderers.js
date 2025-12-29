@@ -13,6 +13,104 @@ function getWindow() {
   return null;
 }
 
+// Track launching agents to prevent double-clicks
+const launchingAgents = new Set();
+const MAX_LAUNCHING_AGENTS = 20; // Limit set size to prevent memory leaks
+
+/**
+ * Launch agent for a workstream
+ */
+async function launchWorkstreamAgent(versionTag, workstreamId, event) {
+  // Prevent double-clicks
+  const launchKey = `${versionTag}-${workstreamId}`;
+  if (launchingAgents.has(launchKey)) {
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification("Agent launch already in progress...", "info");
+    }
+    return;
+  }
+  
+  // Clean up old entries if set gets too large
+  if (launchingAgents.size >= MAX_LAUNCHING_AGENTS) {
+    // Remove first 5 entries
+    const keysToRemove = Array.from(launchingAgents).slice(0, 5);
+    keysToRemove.forEach(key => launchingAgents.delete(key));
+  }
+  
+  launchingAgents.add(launchKey);
+  
+  // Get button reference
+  const button = event?.target || document.getElementById(`launch-agent-${workstreamId.replace(/[^a-zA-Z0-9]/g, '-')}`) || 
+                 document.querySelector(`button[onclick*="launchWorkstreamAgent('${versionTag}', '${workstreamId}')"]`);
+  
+  try {
+    const win = getWindow();
+    if (!win || !win.showNotification) {
+      console.error("window.showNotification is not available");
+      return;
+    }
+    
+    // Disable button immediately
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Launching...";
+    }
+    
+    win.showNotification(`Launching agent for workstream: ${workstreamId}...`, "info");
+    
+    const result = await win.apiCall(`/api/workstreams/${versionTag}/${workstreamId}/launch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        agentType: "cursor",
+        autoMerge: false,
+        mergeStrategy: "merge"
+      })
+    });
+    
+    if (result.success) {
+      win.showNotification(`Agent launched successfully! Monitor at: https://cursor.com/agents/${result.cloudAgentId}`, "success");
+      // Refresh the view to show the agent status
+      if (win.renderVersionStage) {
+        setTimeout(() => {
+          const currentHash = win.location?.hash || "";
+          const match = currentHash.match(/versions\/([^/]+)\/([^/]+)/);
+          if (match) {
+            win.renderVersionStage(match[1], match[2]);
+          }
+        }, 1000);
+      }
+    } else {
+      win.showNotification(`Failed to launch agent: ${result.error || "Unknown error"}`, "error");
+      // Re-enable button on error
+      if (button) {
+        button.disabled = false;
+        button.textContent = "🚀 Launch Agent";
+      }
+    }
+  } catch (error) {
+    const win = getWindow();
+    if (win && win.showNotification) {
+      win.showNotification(`Error launching agent: ${error.message}`, "error");
+    }
+    console.error("Failed to launch workstream agent:", error);
+    
+    // Re-enable button on error
+    if (button) {
+      button.disabled = false;
+      button.textContent = "🚀 Launch Agent";
+    }
+  } finally {
+    // Remove from launching set after a delay to allow UI to update
+    setTimeout(() => {
+      launchingAgents.delete(launchKey);
+    }, 2000);
+  }
+}
+
 /**
  * Manually trigger merge for planning agent branch
  */
@@ -467,7 +565,28 @@ async function renderPlanStage(versionTag, container) {
 /**
  * Render implement stage
  */
+// Track active render calls to prevent concurrent requests
+const activeRenderCalls = new Map();
+const MAX_RENDER_CALLS = 50; // Limit map size to prevent memory leaks
+
 async function renderImplementStage(versionTag, container) {
+  // Prevent concurrent calls for the same version
+  const renderKey = `implement-${versionTag}`;
+  if (activeRenderCalls.has(renderKey)) {
+    console.warn(`[Implement Stage] Render already in progress for ${versionTag}, skipping duplicate call`);
+    return;
+  }
+  
+  // Clean up old entries if map gets too large
+  if (activeRenderCalls.size >= MAX_RENDER_CALLS) {
+    // Remove oldest entries (first 10)
+    const keysToRemove = Array.from(activeRenderCalls.keys()).slice(0, 10);
+    keysToRemove.forEach(key => activeRenderCalls.delete(key));
+  }
+  
+  // Mark as active
+  activeRenderCalls.set(renderKey, true);
+  
   try {
     const summaryData = await window.apiCall(`/api/versions/${versionTag}/implement/summary`);
     const summary = summaryData.summary || {};
@@ -479,6 +598,10 @@ async function renderImplementStage(versionTag, container) {
     const progressEntries = details.progressEntries || 0;
     const recentActivity = details.recentActivity || [];
     const progress = summary.progress || 0;
+    
+    // Preserve scroll position before update
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
     
     container.innerHTML = `
       <div class="stage-content">
@@ -514,14 +637,30 @@ async function renderImplementStage(versionTag, container) {
                 ${workstreams.map(ws => `
                   <li style="padding: 0.75rem; margin-bottom: 0.5rem; background: var(--bg-secondary); border-radius: var(--radius);">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
-                      <strong>${ws.name}</strong>
+                      <strong>${window.escapeHtml(ws.name)}</strong>
                       <span style="padding: 0.25rem 0.5rem; background: ${ws.status === "active" ? "var(--primary)" : "var(--text-light)"}; color: white; border-radius: var(--radius); font-size: 0.75rem;">
                         ${ws.status}
                       </span>
                     </div>
-                    <div style="height: 4px; background: var(--border); border-radius: 2px; margin-top: 0.5rem;">
+                    ${ws.description ? `<div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.5rem;">${window.escapeHtml(ws.description)}</div>` : ""}
+                    <div style="height: 4px; background: var(--border); border-radius: 2px; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                       <div style="height: 100%; width: ${ws.progress || 0}%; background: var(--primary);"></div>
                     </div>
+                    ${ws.metadata?.agentId ? `
+                      <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.5rem;">
+                        Agent: <a href="https://cursor.com/agents/${ws.metadata.agentId}" target="_blank" style="color: var(--primary);">${ws.metadata.agentId}</a>
+                        ${ws.metadata.agentStatus ? ` (${ws.metadata.agentStatus})` : ""}
+                      </div>
+                    ` : ""}
+                    <button 
+                      class="btn btn-sm" 
+                      onclick="launchWorkstreamAgent('${versionTag.replace(/'/g, "\\'")}', '${ws.id.replace(/'/g, "\\'")}', event); event.stopPropagation();" 
+                      style="width: 100%; margin-top: 0.5rem; ${ws.metadata?.agentId ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                      ${ws.metadata?.agentId ? 'disabled' : ''}
+                      id="launch-agent-${ws.id.replace(/[^a-zA-Z0-9]/g, '-')}"
+                    >
+                      ${ws.metadata?.agentId ? `Agent Running (${ws.metadata.agentId.substring(0, 8)}...)` : "🚀 Launch Agent"}
+                    </button>
                   </li>
                 `).join("")}
               </ul>
@@ -530,7 +669,7 @@ async function renderImplementStage(versionTag, container) {
                 No workstreams created yet.
               </p>
             `}
-            <button class="btn btn-primary" onclick="openWorkstreamCreationWizard()" style="margin-top: 1rem; width: 100%;">
+            <button class="btn btn-primary" onclick="openWorkstreamWizard()" style="margin-top: 1rem; width: 100%;">
               Create Workstream
             </button>
           </div>
@@ -560,13 +699,46 @@ async function renderImplementStage(versionTag, container) {
         </div>
       </div>
     `;
+    
+    // Restore scroll position after DOM update
+    requestAnimationFrame(() => {
+      if (container.scrollTop !== scrollTop) {
+        container.scrollTop = scrollTop;
+      }
+      if (container.scrollLeft !== scrollLeft) {
+        container.scrollLeft = scrollLeft;
+      }
+    });
   } catch (error) {
     console.error("Failed to render implement stage:", error);
-    container.innerHTML = `
-      <div style="padding: 2rem; text-align: center; color: var(--text-light);">
-        <p>Failed to load implement stage: ${error.message}</p>
-      </div>
-    `;
+    
+    // Don't show error if it's a resource error (likely too many requests)
+    const isResourceError = error.message && (
+      error.message.includes("ERR_INSUFFICIENT_RESOURCES") ||
+      error.message.includes("insufficient resources") ||
+      error.name === "TypeError" && error.message.includes("Failed to fetch")
+    );
+    
+    if (isResourceError) {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: var(--warning);">
+          <p>⚠️ Too many requests. Please wait a moment and refresh.</p>
+          <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">Refresh Page</button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: var(--text-light);">
+          <p>Failed to load implement stage: ${error.message}</p>
+          <button class="btn btn-secondary" onclick="window.loadStageContent && window.loadStageContent('${versionTag}', 'implement')" style="margin-top: 1rem;">Retry</button>
+        </div>
+      `;
+    }
+  } finally {
+    // Always clear the active flag after a delay to prevent immediate retries
+    setTimeout(() => {
+      activeRenderCalls.delete(renderKey);
+    }, 1000);
   }
 }
 
@@ -728,6 +900,12 @@ try {
           if (isTestEnv) {
             console.log("[versions-stage-renderers] ✓ Assigned renderPlanStage to window");
           }
+        }
+        if (typeof launchWorkstreamAgent === "function") {
+          win.launchWorkstreamAgent = launchWorkstreamAgent;
+          if (isTestEnv) {
+            console.log("[versions-stage-renderers] ✓ Assigned launchWorkstreamAgent to window");
+          }
         } else {
           console.error("[versions-stage-renderers] renderPlanStage is not a function:", typeof renderPlanStage);
         }
@@ -762,7 +940,8 @@ if (typeof module !== "undefined" && module.exports) {
     renderImplementStage,
     renderTestStage,
     renderReviewStage,
-    mergePlanningAgentBranch
+    mergePlanningAgentBranch,
+    launchWorkstreamAgent
   };
 }
 

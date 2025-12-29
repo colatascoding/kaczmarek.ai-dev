@@ -436,7 +436,23 @@ async function loadStageContent(versionTag, stage) {
     }, 100);
   } catch (error) {
     console.error("Failed to load stage content:", error);
-    container.innerHTML = `<p style="color: var(--error);">Failed to load stage content: ${error.message}</p>`;
+    
+    // Don't retry immediately on error - prevent infinite loops
+    const isResourceError = error.message && (
+      error.message.includes("ERR_INSUFFICIENT_RESOURCES") ||
+      error.message.includes("insufficient resources")
+    );
+    
+    if (isResourceError) {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: var(--warning);">
+          <p>⚠️ Too many requests. Please wait a moment.</p>
+          <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">Refresh Page</button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<p style="color: var(--error);">Failed to load stage content: ${error.message}</p>`;
+    }
   }
 }
 
