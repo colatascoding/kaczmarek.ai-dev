@@ -20,6 +20,59 @@ const MAX_LAUNCHING_AGENTS = 20; // Limit set size to prevent memory leaks
 /**
  * Launch agent for a workstream
  */
+/**
+ * Create workstreams from goals.md manually
+ */
+async function createWorkstreamsFromGoals(versionTag, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const button = document.getElementById("create-workstreams-from-goals-btn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Creating...";
+  }
+
+  try {
+    const result = await window.apiCall(`/api/workstreams/${versionTag}/create-from-goals`, {
+      method: "POST"
+    });
+
+    if (result.success) {
+      window.showNotification(
+        `Successfully created ${result.workstreamsCreated} workstream(s) from goals!`,
+        "success"
+      );
+      
+      // Refresh the implement stage to show new workstreams
+      if (window.renderImplementStage) {
+        const container = document.getElementById("stage-content");
+        if (container) {
+          await window.renderImplementStage(versionTag, container);
+        }
+      }
+    } else {
+      window.showNotification(
+        `Failed to create workstreams: ${result.error || "Unknown error"}`,
+        "error"
+      );
+    }
+  } catch (error) {
+    console.error("Failed to create workstreams from goals:", error);
+    window.showNotification(
+      `Failed to create workstreams: ${error.message || "Unknown error"}`,
+      "error"
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "✨ Create from Goals";
+    }
+  }
+}
+
 async function launchWorkstreamAgent(versionTag, workstreamId, event) {
   // Prevent double-clicks
   const launchKey = `${versionTag}-${workstreamId}`;
@@ -665,8 +718,26 @@ async function renderImplementStage(versionTag, container) {
                 `).join("")}
               </ul>
             ` : `
-              <p style="color: var(--text-light); padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
-                No workstreams created yet.
+              <div style="padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
+                <p style="color: var(--text-light); margin-bottom: 1rem;">
+                  No workstreams created yet. Create them manually or automatically from goals.
+                </p>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                  <button 
+                    class="btn btn-primary btn-sm" 
+                    onclick="createWorkstreamsFromGoals('${versionTag.replace(/'/g, "\\'")}', event)"
+                    id="create-workstreams-from-goals-btn"
+                  >
+                    ✨ Create from Goals
+                  </button>
+                  <button 
+                    class="btn btn-secondary btn-sm" 
+                    onclick="openWorkstreamWizard()"
+                  >
+                    ➕ Create Manually
+                  </button>
+                </div>
+              </div>
               </p>
             `}
             <button class="btn btn-primary" onclick="openWorkstreamWizard()" style="margin-top: 1rem; width: 100%;">
@@ -911,6 +982,9 @@ try {
         }
         if (typeof renderImplementStage === "function") {
           win.renderImplementStage = renderImplementStage;
+        }
+        if (typeof createWorkstreamsFromGoals === "function") {
+          win.createWorkstreamsFromGoals = createWorkstreamsFromGoals;
         }
         if (typeof renderTestStage === "function") {
           win.renderTestStage = renderTestStage;
