@@ -162,7 +162,10 @@ function renderVersionWizardStep1(container, nextBtn) {
 function renderVersionWizardStep2(container, nextBtn) {
   const goals = versionWizardData.goals || [];
   const useAI = versionWizardData.useAI !== false; // Default to true if not set
-  
+  const useManualWorkstreams = versionWizardData.useManualWorkstreams === true;
+  const workstreams = versionWizardData.workstreams || [];
+  const workstreamCount = versionWizardData.workstreamCount || 3;
+
   container.innerHTML = `
     <div style="margin-bottom: 1.5rem;">
       <h4 style="margin: 0 0 0.5rem 0;">Step 2 of 3: Define Goals</h4>
@@ -172,7 +175,7 @@ function renderVersionWizardStep2(container, nextBtn) {
     <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
       <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
         <input type="radio" name="planMethod" value="ai" ${useAI ? "checked" : ""} 
-               onchange="versionWizardData.useAI = true; renderVersionWizardStep();" style="margin-top: 0.25rem;">
+               onchange="versionWizardData.useAI = true; versionWizardData.useManualWorkstreams = false; renderVersionWizardStep();" style="margin-top: 0.25rem;">
         <div style="flex: 1;">
           <div style="font-weight: 500; margin-bottom: 0.25rem;">🤖 Generate Plan with AI Agent</div>
           <div style="font-size: 0.875rem; color: var(--text-light);">
@@ -264,18 +267,94 @@ function renderVersionWizardStep2(container, nextBtn) {
     
     <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius);">
       <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
-        <input type="radio" name="planMethod" value="manual" ${!useAI ? "checked" : ""} 
-               onchange="versionWizardData.useAI = false; renderVersionWizardStep();" style="margin-top: 0.25rem;">
+        <input type="radio" name="planMethod" value="manual-workstreams" ${useManualWorkstreams ? "checked" : ""} 
+               onchange="versionWizardData.useAI = false; versionWizardData.useManualWorkstreams = true; renderVersionWizardStep();" style="margin-top: 0.25rem;">
         <div style="flex: 1;">
-          <div style="font-weight: 500; margin-bottom: 0.25rem;">✏️ Manual Entry</div>
+          <div style="font-weight: 500; margin-bottom: 0.25rem;">📋 Manual Workstream Goals</div>
           <div style="font-size: 0.875rem; color: var(--text-light);">
-            Manually define goals for this version.
+            Define workstreams with sequential or parallel goals. Each workstream can have multiple sequential goals or a single parallel goal.
           </div>
         </div>
       </label>
     </div>
     
-    ${!useAI ? `
+    ${useManualWorkstreams ? `
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem;">
+          Number of Workstreams
+        </label>
+        <input 
+          type="number" 
+          id="manual-workstream-count"
+          min="1" 
+          max="10" 
+          value="${workstreamCount}"
+          style="width: 100px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+          onchange="const newCount = parseInt(this.value) || 3; const oldCount = versionWizardData.workstreamCount || 3; versionWizardData.workstreamCount = newCount; if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (newCount < oldCount) { versionWizardData.workstreams = versionWizardData.workstreams.slice(0, newCount); } renderVersionWizardStep();"
+        >
+      </div>
+      
+      <div id="manual-workstreams-list" style="margin-bottom: 1rem;">
+        ${Array.from({ length: workstreamCount }, (_, i) => {
+          const ws = workstreams[i] || { name: `Workstream ${String.fromCharCode(65 + i)}`, goals: [], mode: 'sequential' };
+          const wsLabel = String.fromCharCode(65 + i);
+          return `
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius); border: 1px solid var(--border);">
+              <div style="margin-bottom: 0.75rem;">
+                <strong>${wsLabel}:</strong>
+                <input 
+                  type="text" 
+                  placeholder="Workstream name"
+                  value="${window.escapeHtml ? window.escapeHtml(ws.name || '') : (ws.name || '')}"
+                  style="margin-left: 0.5rem; flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+                  onchange="if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (!versionWizardData.workstreams[${i}]) versionWizardData.workstreams[${i}] = {}; versionWizardData.workstreams[${i}].name = this.value;"
+                >
+              </div>
+              <div style="margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+                  <input type="radio" name="ws-${i}-mode" value="sequential" ${ws.mode !== 'parallel' ? 'checked' : ''} 
+                         onchange="if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (!versionWizardData.workstreams[${i}]) versionWizardData.workstreams[${i}] = {}; versionWizardData.workstreams[${i}].mode = 'sequential'; renderVersionWizardStep();">
+                  Sequential (multiple goals, executed in order)
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; margin-left: 1rem;">
+                  <input type="radio" name="ws-${i}-mode" value="parallel" ${ws.mode === 'parallel' ? 'checked' : ''} 
+                         onchange="if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (!versionWizardData.workstreams[${i}]) versionWizardData.workstreams[${i}] = {}; versionWizardData.workstreams[${i}].mode = 'parallel'; renderVersionWizardStep();">
+                  Parallel (single goal)
+                </label>
+              </div>
+              ${ws.mode === 'parallel' ? `
+                <div>
+                  <input 
+                    type="text" 
+                    placeholder="Enter goal for parallel execution"
+                    value="${window.escapeHtml ? window.escapeHtml((ws.goals && ws.goals[0]) || '') : ((ws.goals && ws.goals[0]) || '')}"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+                    onchange="if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (!versionWizardData.workstreams[${i}]) versionWizardData.workstreams[${i}] = {}; versionWizardData.workstreams[${i}].goals = [this.value];"
+                  >
+                </div>
+              ` : `
+                <div id="ws-${i}-goals-list">
+                  ${(ws.goals || []).map((goal, gIndex) => `
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                      <input 
+                        type="text" 
+                      value="${window.escapeHtml ? window.escapeHtml(goal) : goal}" 
+                      placeholder="Goal ${gIndex + 1}"
+                        style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius);"
+                        onchange="if (!versionWizardData.workstreams) versionWizardData.workstreams = []; if (!versionWizardData.workstreams[${i}]) versionWizardData.workstreams[${i}] = {}; if (!versionWizardData.workstreams[${i}].goals) versionWizardData.workstreams[${i}].goals = []; versionWizardData.workstreams[${i}].goals[${gIndex}] = this.value;"
+                      >
+                      <button class="btn btn-sm" onclick="removeWorkstreamGoal(${i}, ${gIndex})">Remove</button>
+                    </div>
+                  `).join("")}
+                  ${(!ws.goals || ws.goals.length === 0) ? '<p style="color: var(--text-light); font-size: 0.875rem; margin-bottom: 0.5rem;">No goals added yet</p>' : ""}
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="addWorkstreamGoal(${i})">+ Add Goal</button>
+              `}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    ` : !useAI ? `
       <div id="wizard-goals-list" style="margin-bottom: 1rem;">
         ${goals.map((goal, index) => `
           <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -311,6 +390,41 @@ function renderVersionWizardStep2(container, nextBtn) {
       }
       
       versionWizardData.highLevelGoal = highLevelGoal;
+    }
+    
+    // Validate manual workstreams
+    if (versionWizardData.useManualWorkstreams === true) {
+      const workstreams = versionWizardData.workstreams || [];
+      const workstreamCount = versionWizardData.workstreamCount || 3;
+      
+      // Ensure workstreams array is properly initialized
+      if (workstreams.length < workstreamCount) {
+        for (let i = workstreams.length; i < workstreamCount; i++) {
+          if (!workstreams[i]) {
+            workstreams[i] = { name: `Workstream ${String.fromCharCode(65 + i)}`, goals: [], mode: 'sequential' };
+          }
+        }
+      }
+      
+      // Validate each workstream
+      for (let i = 0; i < workstreamCount; i++) {
+        const ws = workstreams[i] || {};
+        if (!ws.name || ws.name.trim() === '') {
+          window.showNotification(`Please provide a name for workstream ${String.fromCharCode(65 + i)}`, "error");
+          return;
+        }
+        if (ws.mode === 'parallel') {
+          if (!ws.goals || ws.goals.length === 0 || !ws.goals[0] || ws.goals[0].trim() === '') {
+            window.showNotification(`Please provide a goal for workstream ${String.fromCharCode(65 + i)} (parallel mode)`, "error");
+            return;
+          }
+        } else {
+          if (!ws.goals || ws.goals.length === 0 || ws.goals.every(g => !g || g.trim() === '')) {
+            window.showNotification(`Please provide at least one goal for workstream ${String.fromCharCode(65 + i)} (sequential mode)`, "error");
+            return;
+          }
+        }
+      }
     }
     
     versionWizardStep = 2;
@@ -359,6 +473,26 @@ function renderVersionWizardStep3(container, nextBtn) {
           <strong>📦 Workstreams:</strong> ${versionWizardData.workstreamCount || 3} workstream${(versionWizardData.workstreamCount || 3) !== 1 ? 's' : ''} will be automatically created from the generated goals
         </div>
       ` : ""}
+      ${versionWizardData.useManualWorkstreams === true && versionWizardData.workstreams ? `
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+          <strong>Planning Method:</strong> Manual Workstream Goals
+        </div>
+        <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--primary-light, #e3f2fd); border-left: 3px solid var(--primary); border-radius: var(--radius);">
+          <strong>📋 Workstreams (${versionWizardData.workstreams.length}):</strong>
+          <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            ${versionWizardData.workstreams.map((ws, i) => `
+              <li style="margin-bottom: 0.5rem;">
+                <strong>${String.fromCharCode(65 + i)}: ${window.escapeHtml ? window.escapeHtml(ws.name || 'Unnamed') : (ws.name || 'Unnamed')}</strong> (${ws.mode === 'parallel' ? 'Parallel' : 'Sequential'})
+                ${ws.goals && ws.goals.length > 0 ? `
+                  <ul style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                    ${ws.goals.map(g => `<li>${window.escapeHtml ? window.escapeHtml(g) : g}</li>`).join("")}
+                  </ul>
+                ` : '<span style="color: var(--text-light);">No goals defined</span>'}
+              </li>
+            `).join("")}
+          </ul>
+        </div>
+      ` : ""}
     </div>
   `;
   
@@ -383,6 +517,33 @@ function addWizardGoal() {
 function removeWizardGoal(index) {
   if (versionWizardData.goals) {
     versionWizardData.goals.splice(index, 1);
+    renderVersionWizardStep();
+  }
+}
+
+/**
+ * Add goal to workstream
+ */
+function addWorkstreamGoal(workstreamIndex) {
+  if (!versionWizardData.workstreams) {
+    versionWizardData.workstreams = [];
+  }
+  if (!versionWizardData.workstreams[workstreamIndex]) {
+    versionWizardData.workstreams[workstreamIndex] = { goals: [], mode: 'sequential' };
+  }
+  if (!versionWizardData.workstreams[workstreamIndex].goals) {
+    versionWizardData.workstreams[workstreamIndex].goals = [];
+  }
+  versionWizardData.workstreams[workstreamIndex].goals.push("");
+  renderVersionWizardStep();
+}
+
+/**
+ * Remove goal from workstream
+ */
+function removeWorkstreamGoal(workstreamIndex, goalIndex) {
+  if (versionWizardData.workstreams && versionWizardData.workstreams[workstreamIndex] && versionWizardData.workstreams[workstreamIndex].goals) {
+    versionWizardData.workstreams[workstreamIndex].goals.splice(goalIndex, 1);
     renderVersionWizardStep();
   }
 }
@@ -426,6 +587,7 @@ async function createVersionFromWizard() {
   try {
     const versionTag = `${versionWizardData.major}-${versionWizardData.minor}`;
     const useAI = versionWizardData.useAI !== false;
+    const useManualWorkstreams = versionWizardData.useManualWorkstreams === true;
     
     // Show loading state
     const nextBtn = document.getElementById("version-wizard-next");
@@ -434,20 +596,32 @@ async function createVersionFromWizard() {
       nextBtn.textContent = "Creating Version...";
     }
     
+    const requestBody = {
+      major: versionWizardData.major,
+      minor: versionWizardData.minor,
+      type: versionWizardData.type || "minor",
+      goals: versionWizardData.goals || [],
+      launchPlanningAgent: useAI,
+      commitBeforeAgent: versionWizardData.commitBeforeAgent !== false, // Default to true
+      pushBeforeAgent: versionWizardData.pushBeforeAgent !== false, // Default to true
+      skipFolderCreation: versionWizardData.skipFolderCreation === true,
+      autoMerge: versionWizardData.autoMerge === true,
+      mergeStrategy: versionWizardData.mergeStrategy || "merge"
+    };
+    
+    // Add workstream goals if using manual workstreams
+    if (useManualWorkstreams && versionWizardData.workstreams) {
+      requestBody.workstreams = versionWizardData.workstreams;
+      requestBody.highLevelGoal = versionWizardData.highLevelGoal || null;
+      requestBody.workstreamCount = versionWizardData.workstreamCount || 3;
+    } else if (useAI) {
+      requestBody.highLevelGoal = versionWizardData.highLevelGoal || null;
+      requestBody.workstreamCount = versionWizardData.workstreamCount || 3;
+    }
+    
     const data = await window.apiCall("/api/versions", {
       method: "POST",
-      body: JSON.stringify({
-        major: versionWizardData.major,
-        minor: versionWizardData.minor,
-        type: versionWizardData.type || "minor",
-        goals: versionWizardData.goals || [],
-        launchPlanningAgent: useAI,
-        commitBeforeAgent: versionWizardData.commitBeforeAgent !== false, // Default to true
-        pushBeforeAgent: versionWizardData.pushBeforeAgent !== false, // Default to true
-        skipFolderCreation: versionWizardData.skipFolderCreation === true,
-        autoMerge: versionWizardData.autoMerge === true,
-        mergeStrategy: versionWizardData.mergeStrategy || "merge"
-      }),
+      body: JSON.stringify(requestBody),
       headers: {
         "Content-Type": "application/json"
       }

@@ -1,0 +1,14 @@
+{
+  "id": "concept",
+  "name": "concept",
+  "sanitizedName": "concept",
+  "description": "Workstream A",
+  "versionTag": "0-16",
+  "status": "active",
+  "created": "2025-12-30",
+  "tasks": [],
+  "goals": [],
+  "currentTaskIndex": 0,
+  "totalTasks": 0,
+  "mode": "sequential"
+}
