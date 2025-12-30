@@ -1,0 +1,30 @@
+{
+  "version": "0-17",
+  "type": "minor",
+  "status": "completed",
+  "started": "2025-12-30",
+  "completed": "2025-12-30",
+  "description": "Multi-project capabilities concept",
+  "goals": [],
+  "stages": {
+    "1plan": {
+      "status": "completed",
+      "startedAt": "2025-12-30T00:00:00.000Z"
+    },
+    "2implement": {
+      "status": "completed",
+      "startedAt": "2025-12-30T00:00:00.000Z",
+      "completedAt": "2025-12-30T00:00:00.000Z"
+    },
+    "3test": {
+      "status": "completed",
+      "startedAt": "2025-12-30T00:00:00.000Z",
+      "completedAt": "2025-12-30T00:00:00.000Z"
+    },
+    "4review": {
+      "status": "completed",
+      "startedAt": "2025-12-30T00:00:00.000Z",
+      "completedAt": "2025-12-30T00:00:00.000Z"
+    }
+  }
+}
