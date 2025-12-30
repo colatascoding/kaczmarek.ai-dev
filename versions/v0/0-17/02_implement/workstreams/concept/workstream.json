@@ -1,0 +1,18 @@
+{
+  "id": "concept",
+  "name": "Multi-Project Capabilities Concept",
+  "sanitizedName": "concept",
+  "description": "Create a comprehensive concept for multi-project capabilities including workspace management, cross-project workflows, and resource sharing",
+  "versionTag": "0-17",
+  "status": "completed",
+  "created": "2025-12-30",
+  "tasks": [
+    {
+      "id": "concept-multi-project",
+      "name": "Create a concept for multi-project capabilities",
+      "description": "Design and document a comprehensive concept for managing multiple projects within kaczmarek.ai-dev",
+      "status": "completed",
+      "completedAt": "2025-12-30"
+    }
+  ]
+}
