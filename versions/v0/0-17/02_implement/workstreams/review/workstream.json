@@ -1,0 +1,21 @@
+{
+  "id": "review",
+  "name": "review",
+  "sanitizedName": "review",
+  "description": "Workstream B",
+  "versionTag": "0-17",
+  "status": "active",
+  "created": "2025-12-30",
+  "tasks": [],
+  "goals": [
+    {
+      "text": "review the concept for multi-project capabilities",
+      "completed": false,
+      "taskSequence": 1
+    }
+  ],
+  "currentTaskIndex": 0,
+  "totalTasks": 1,
+  "mode": "sequential",
+  "updated": "2025-12-30"
+}

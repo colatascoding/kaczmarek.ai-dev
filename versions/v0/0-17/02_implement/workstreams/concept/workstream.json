@@ -1,0 +1,26 @@
+{
+  "id": "concept",
+  "name": "concept",
+  "sanitizedName": "concept",
+  "description": "Workstream A",
+  "versionTag": "0-17",
+  "status": "active",
+  "created": "2025-12-30",
+  "tasks": [],
+  "goals": [
+    {
+      "text": "create a concept for multi-project capabilites",
+      "completed": false,
+      "taskSequence": 1
+    }
+  ],
+  "currentTaskIndex": 0,
+  "totalTasks": 1,
+  "mode": "sequential",
+  "updated": "2025-12-30",
+  "agentId": "bc-f8cdae16-57dc-4da7-8b5a-1fee79fa8eca",
+  "agentStatus": "CREATING",
+  "agentStartedAt": "2025-12-30T20:33:52.004Z",
+  "currentTask": "create a concept for multi-project capabilites",
+  "workstreamLabel": null
+}

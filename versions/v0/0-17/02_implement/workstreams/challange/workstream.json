@@ -1,0 +1,21 @@
+{
+  "id": "challange",
+  "name": "challange",
+  "sanitizedName": "challange",
+  "description": "Workstream C",
+  "versionTag": "0-17",
+  "status": "active",
+  "created": "2025-12-30",
+  "tasks": [],
+  "goals": [
+    {
+      "text": "challange the concept for multi-project capabilites",
+      "completed": false,
+      "taskSequence": 1
+    }
+  ],
+  "currentTaskIndex": 0,
+  "totalTasks": 1,
+  "mode": "sequential",
+  "updated": "2025-12-30"
+}
